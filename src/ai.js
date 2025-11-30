@@ -1,15 +1,16 @@
-export async function getAISafetySuggestions(promptText) {
+export async function getAISafetySuggestions(prompt) {
   try {
     const res = await fetch("/api/openai", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({ prompt })
     });
-    if (!res.ok) throw new Error('AI server error');
-    const data = await res.json();
-    return data; 
+
+    return await res.json();
+
   } catch (err) {
-    console.warn("AI request failed:", err);
     return { error: err.message };
   }
 }
