@@ -4,11 +4,5 @@
     "api/openai.js": {
       "runtime": "nodejs18.x"
     }
-  },
-  "routes": [
-    {
-      "src": "/api/openai",
-      "dest": "/api/openai.js"
-    }
-  ]
+  }
 }

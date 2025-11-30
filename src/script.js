@@ -95,7 +95,7 @@ document.getElementById("aiHelpBtn").addEventListener("click", async () => {
   const res = await getAISafetySuggestions(prompt);
 
   if (res.error) {
-    alert("AI service unavailable. Check console.");
+    alert("AI service unavailable.");
     console.error(res);
     return;
   }
