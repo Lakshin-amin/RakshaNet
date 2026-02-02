@@ -135,3 +135,19 @@ onUserStateChanged((user) => {
     userEmail.innerText = "";
   }
 });
+
+function startSafetyTimer() {
+  fetch("http://localhost:5001/start-timer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: "demoUser",
+      minutes: 5
+    })
+  })
+    .then(res => res.json())
+    .then(data => console.log("Timer started:", data))
+    .catch(err => console.error(err));
+}
+
+window.startSafetyTimer = startSafetyTimer;
