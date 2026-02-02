@@ -137,6 +137,9 @@ onUserStateChanged((user) => {
 });
 
 function startSafetyTimer() {
+  console.log("Start Safety Timer clicked");
+
+  // Local demo only (Python)
   fetch("http://localhost:5001/start-timer", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -144,10 +147,15 @@ function startSafetyTimer() {
       userId: "demoUser",
       minutes: 5
     })
-  })
-    .then(res => res.json())
-    .then(data => console.log("Timer started:", data))
-    .catch(err => console.error(err));
+  }).catch(() => {
+    console.log("Python backend not available (expected on GitHub Pages)");
+  });
 }
 
-window.startSafetyTimer = startSafetyTimer;
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("startSafetyTimerBtn");
+  if (btn) {
+    btn.addEventListener("click", startSafetyTimer);
+  }
+});
+
