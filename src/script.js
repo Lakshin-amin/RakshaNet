@@ -153,9 +153,35 @@ function startSafetyTimer() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("startSafetyTimerBtn");
-  if (btn) {
-    btn.addEventListener("click", startSafetyTimer);
-  }
+  const btn = document.getElementById("startTimerBtn");
+
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    console.log("Start Safety Timer clicked");
+
+    // FRONTEND DEMO TIMER (GitHub Pages safe)
+    let seconds = 60;
+    alert("Safety timer started (demo mode)");
+
+    const interval = setInterval(() => {
+      seconds--;
+      console.log("Time left:", seconds);
+
+      if (seconds <= 0) {
+        clearInterval(interval);
+        alert("⏰ Safety timer expired (demo)");
+      }
+    }, 1000);
+
+    // BACKEND (only works locally)
+    fetch("http://localhost:5001/start-timer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "demoUser", minutes: 1 })
+    }).catch(() => {
+      console.warn("Backend not available (expected on GitHub Pages)");
+    });
+  });
 });
 
