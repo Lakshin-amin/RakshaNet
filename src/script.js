@@ -153,35 +153,53 @@ function startSafetyTimer() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("startTimerBtn");
+  const startBtn = document.getElementById("startTimerBtn");
+  const checkInBtn = document.getElementById("checkInBtn");
 
-  if (!btn) return;
+  // START SAFETY TIMER
+  if (startBtn) {
+    startBtn.addEventListener("click", () => {
+      console.log("Start Safety Timer clicked");
 
-  btn.addEventListener("click", () => {
-    console.log("Start Safety Timer clicked");
+      // Frontend demo countdown (works on GitHub Pages)
+      let seconds = 60;
+      alert("Safety timer started (demo mode)");
 
-    // FRONTEND DEMO TIMER (GitHub Pages safe)
-    let seconds = 60;
-    alert("Safety timer started (demo mode)");
+      const interval = setInterval(() => {
+        seconds--;
+        console.log("Time left:", seconds);
 
-    const interval = setInterval(() => {
-      seconds--;
-      console.log("Time left:", seconds);
+        if (seconds <= 0) {
+          clearInterval(interval);
+          alert("⏰ Safety timer expired (demo)");
+        }
+      }, 1000);
 
-      if (seconds <= 0) {
-        clearInterval(interval);
-        alert("⏰ Safety timer expired (demo)");
-      }
-    }, 1000);
-
-    // BACKEND (only works locally)
-    fetch("http://localhost:5001/start-timer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "demoUser", minutes: 1 })
-    }).catch(() => {
-      console.warn("Backend not available (expected on GitHub Pages)");
+      // Backend call (works locally only)
+      fetch("http://localhost:5001/start-timer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: "demoUser", minutes: 1 })
+      }).catch(() => {
+        console.warn("Backend not available (expected on GitHub Pages)");
+      });
     });
-  });
-});
+  }
 
+  // CHECK-IN (I'M SAFE)
+  if (checkInBtn) {
+    checkInBtn.addEventListener("click", () => {
+      console.log("User checked in");
+
+      alert("You are marked SAFE ✅");
+
+      fetch("http://localhost:5001/check-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: "demoUser" })
+      }).catch(() => {
+        console.warn("Backend not available (expected on GitHub Pages)");
+      });
+    });
+  }
+});
