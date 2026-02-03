@@ -4,6 +4,9 @@ import { getAISafetySuggestions } from "./ai.js";
 import { googleLogin, logoutUser, onUserStateChanged, db } from "./firebase-init.js";
 import { collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
+let safetyInterval = null;
+let safetySeconds = 0;
+
 initMap();// already in your code
 
 navigator.geolocation.getCurrentPosition(
@@ -158,48 +161,61 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // START SAFETY TIMER
   if (startBtn) {
-    startBtn.addEventListener("click", () => {
-      console.log("Start Safety Timer clicked");
+  startBtn.addEventListener("click", () => {
+    console.log("Start Safety Timer clicked");
 
-      // Frontend demo countdown (works on GitHub Pages)
-      let seconds = 60;
-      alert("Safety timer started (demo mode)");
+    // Prevent multiple timers
+    if (safetyInterval) {
+      clearInterval(safetyInterval);
+    }
 
-      const interval = setInterval(() => {
-        seconds--;
-        console.log("Time left:", seconds);
+    safetySeconds = 60;
+    alert("Safety timer started");
 
-        if (seconds <= 0) {
-          clearInterval(interval);
-          alert("⏰ Safety timer expired (demo)");
-        }
-      }, 1000);
+    safetyInterval = setInterval(() => {
+      safetySeconds--;
+      console.log("Time left:", safetySeconds);
 
-      // Backend call (works locally only)
-      fetch("http://localhost:5001/start-timer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "demoUser", minutes: 1 })
-      }).catch(() => {
-        console.warn("Backend not available (expected on GitHub Pages)");
-      });
+      if (safetySeconds <= 0) {
+        clearInterval(safetyInterval);
+        safetyInterval = null;
+        alert("⏰ Safety timer expired");
+      }
+    }, 1000);
+
+    // Backend (local only)
+    fetch("http://localhost:5001/start-timer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "demoUser", minutes: 1 })
+    }).catch(() => {
+      console.warn("Backend not available (expected on GitHub Pages)");
     });
-  }
+  });
+}
+
 
   // CHECK-IN (I'M SAFE)
-  if (checkInBtn) {
-    checkInBtn.addEventListener("click", () => {
-      console.log("User checked in");
+ if (checkInBtn) {
+  checkInBtn.addEventListener("click", () => {
+    console.log("User checked in");
 
-      alert("You are marked SAFE ✅");
+    // STOP frontend timer
+    if (safetyInterval) {
+      clearInterval(safetyInterval);
+      safetyInterval = null;
+    }
 
-      fetch("http://localhost:5001/check-in", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "demoUser" })
-      }).catch(() => {
-        console.warn("Backend not available (expected on GitHub Pages)");
-      });
+    alert("✅ You are marked SAFE. Timer stopped.");
+
+    // Backend cancel (local only)
+    fetch("http://localhost:5001/check-in", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "demoUser" })
+    }).catch(() => {
+      console.warn("Backend not available (expected on GitHub Pages)");
     });
-  }
+  });
+}
 });
