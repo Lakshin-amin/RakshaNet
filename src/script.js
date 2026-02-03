@@ -1,133 +1,135 @@
 import { initMap, setUserLocation } from "./map.js";
-import { renderContacts } from "./contacts.js";
 import { getAISafetySuggestions } from "./ai.js";
-import { googleLogin, logoutUser, onUserStateChanged, db } from "./firebase-init.js";
-import { collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { googleLogin, logoutUser, onUserStateChanged } from "./firebase-init.js";
 
+/* ---------------- STATE ---------------- */
 let safetyInterval = null;
 let safetySeconds = 0;
 
-initMap();// already in your code
-
-navigator.geolocation.getCurrentPosition(
-  pos => {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-    setUserLocation(lat, lng);
-  },
-  err => {
-    console.log("Location not allowed yet");
-  }
-);
-
-//renderContacts();
-
-
-function getContacts() {
-  const raw = localStorage.getItem("safe_contacts");
-  return raw ? JSON.parse(raw) : [];
-}
-
-
-document.getElementById("sosBtn").addEventListener("click", async () => {
-  const alertsList = document.getElementById("alertsList");
-  try {
-    const pos = await new Promise((res, rej) => {
-      navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 8000 });
-    });
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-    setUserLocation(lat, lng);
-
-    
-    const msg = `⚠️ SOS! I need help. My location: https://maps.google.com/?q=${lat},${lng}`;
-
-   
-    const contacts = getContacts();
-    contacts.forEach(c => {
-      const wa = `https://wa.me/${c.phone.replace(/\+/g,'')}?text=${encodeURIComponent(msg)}`;
-      
-      window.open(wa, "_blank");
-    });
-
-   
-    const el = document.createElement("div");
-    el.className = "p-3 bg-red-50 border border-red-100 rounded";
-    el.innerHTML = `<div class="text-sm">SOS sent at ${new Date().toLocaleString()}</div><div class="text-xs text-slate-600 mt-1">${msg}</div>`;
-    alertsList.prepend(el);
-
-    
-    if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
-
-  } catch (err) {
-    alert("Failed to get location. Please enable location permissions.");
-    console.warn(err);
-  }
-});
-
-
-document.getElementById("shareLocationBtn").addEventListener("click", async () => {
-  try {
-    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-    setUserLocation(lat, lng);
-
-    const msg = `My location: https://maps.google.com/?q=${lat},${lng}`;
-    
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
-  } catch (err) {
-    alert("Could not fetch location.");
-  }
-});
-
-
-document.getElementById("fakeCallBtn").addEventListener("click", () => {
- 
-  setTimeout(() => {
-    const audio = new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg");
-    audio.play();
-  }, 2500);
-  alert("Fake call will ring in 3 seconds—answer to use as an escape!");
-});
-
-
-document.getElementById("aiHelpBtn").addEventListener("click", async () => {
-  const prompt = "Give 5 short safety tips for a woman walking alone at night.";
-  
-  const res = await getAISafetySuggestions(prompt);
-
-  if (res.error) {
-    alert("AI service unavailable.");
-    console.error(res);
-    return;
-  }
-
-  const text = res.choices?.[0]?.message?.content || "No response from AI.";
-  
-  alert("AI Safety Tips:\n\n" + text);
-});
-
+/* ---------------- ELEMENTS ---------------- */
+const startBtn = document.getElementById("startTimerBtn");
+const checkInBtn = document.getElementById("checkInBtn");
+const timerBox = document.getElementById("timerBox");
+const timerText = document.getElementById("timerText");
+const alertsList = document.getElementById("alertsList");
 const loginBtn = document.getElementById("loginBtn");
 const userEmail = document.getElementById("userEmail");
 
-loginBtn.addEventListener("click", async () => {
-  if (loginBtn.dataset.logged === "yes") {
-    await logoutUser();
-    loginBtn.innerText = "Login";
-    loginBtn.dataset.logged = "no";
-    userEmail.innerText = "";
-  } else {
-    try {
-      await googleLogin();
-    } catch (err) {
-      alert("Login failed: " + err.message);
+/* ---------------- MAP ---------------- */
+initMap();
+
+navigator.geolocation.getCurrentPosition(
+  pos => setUserLocation(pos.coords.latitude, pos.coords.longitude),
+  () => console.log("Location not allowed")
+);
+
+/* ---------------- HELPERS ---------------- */
+function showAlert(message, type = "info") {
+  const colors = {
+    info: "bg-slate-50 border-slate-200",
+    success: "bg-green-50 border-green-200",
+    danger: "bg-red-50 border-red-200"
+  };
+
+  const el = document.createElement("div");
+  el.className = `p-3 border rounded ${colors[type]}`;
+  el.innerHTML = `
+    <div class="text-sm font-semibold">${message}</div>
+    <div class="text-xs text-slate-500">${new Date().toLocaleString()}</div>
+  `;
+  alertsList.prepend(el);
+}
+
+function tryBackend(endpoint, payload = {}) {
+  fetch("http://localhost:5001" + endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: "demoUser", ...payload })
+  }).catch(() => {
+    console.log("Backend unavailable (demo mode)");
+  });
+}
+
+/* ---------------- SAFETY TIMER ---------------- */
+startBtn.addEventListener("click", () => {
+  if (safetyInterval) clearInterval(safetyInterval);
+
+  safetySeconds = 60;
+  timerBox.classList.remove("hidden");
+  timerText.innerText = safetySeconds;
+
+  showAlert("⏱ Safety timer started");
+
+  safetyInterval = setInterval(() => {
+    safetySeconds--;
+    timerText.innerText = safetySeconds;
+
+    if (safetySeconds <= 0) {
+      clearInterval(safetyInterval);
+      safetyInterval = null;
+      timerBox.classList.add("hidden");
+
+      showAlert("🚨 Safety timer expired! Emergency triggered.", "danger");
+      tryBackend("/start-timer", { minutes: 1 });
     }
+  }, 1000);
+});
+
+checkInBtn.addEventListener("click", () => {
+  if (!safetyInterval) {
+    showAlert("ℹ No active safety timer");
+    return;
+  }
+
+  clearInterval(safetyInterval);
+  safetyInterval = null;
+  safetySeconds = 0;
+
+  timerBox.classList.add("hidden");
+
+  showAlert("✅ You checked in safely. Timer cancelled.", "success");
+  tryBackend("/check-in");
+});
+
+/* ---------------- SOS ---------------- */
+document.getElementById("sosBtn").addEventListener("click", async () => {
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej)
+    );
+
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    setUserLocation(lat, lng);
+
+    const msg = `🚨 SOS! My location: https://maps.google.com/?q=${lat},${lng}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+
+    showAlert("🚨 SOS sent with live location", "danger");
+  } catch {
+    alert("Location permission required");
   }
 });
 
+/* ---------------- AI HELP ---------------- */
+document.getElementById("aiHelpBtn").addEventListener("click", async () => {
+  const res = await getAISafetySuggestions(
+    "Give 5 short safety tips for a woman walking alone at night."
+  );
 
-onUserStateChanged((user) => {
+  alert(res?.choices?.[0]?.message?.content || "AI unavailable");
+});
+
+/* ---------------- LOGIN ---------------- */
+loginBtn.addEventListener("click", async () => {
+  if (loginBtn.dataset.logged === "yes") {
+    await logoutUser();
+  } else {
+    await googleLogin();
+  }
+});
+
+onUserStateChanged(user => {
   if (user) {
     loginBtn.innerText = "Logout";
     loginBtn.dataset.logged = "yes";
@@ -137,85 +139,4 @@ onUserStateChanged((user) => {
     loginBtn.dataset.logged = "no";
     userEmail.innerText = "";
   }
-});
-
-function startSafetyTimer() {
-  console.log("Start Safety Timer clicked");
-
-  // Local demo only (Python)
-  fetch("http://localhost:5001/start-timer", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId: "demoUser",
-      minutes: 5
-    })
-  }).catch(() => {
-    console.log("Python backend not available (expected on GitHub Pages)");
-  });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  const startBtn = document.getElementById("startTimerBtn");
-  const checkInBtn = document.getElementById("checkInBtn");
-
-  // START SAFETY TIMER
-  if (startBtn) {
-  startBtn.addEventListener("click", () => {
-    console.log("Start Safety Timer clicked");
-
-    // Prevent multiple timers
-    if (safetyInterval) {
-      clearInterval(safetyInterval);
-    }
-
-    safetySeconds = 60;
-    alert("Safety timer started");
-
-    safetyInterval = setInterval(() => {
-      safetySeconds--;
-      console.log("Time left:", safetySeconds);
-
-      if (safetySeconds <= 0) {
-        clearInterval(safetyInterval);
-        safetyInterval = null;
-        alert("⏰ Safety timer expired");
-      }
-    }, 1000);
-
-    // Backend (local only)
-    fetch("http://localhost:5001/start-timer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "demoUser", minutes: 1 })
-    }).catch(() => {
-      console.warn("Backend not available (expected on GitHub Pages)");
-    });
-  });
-}
-
-
-  // CHECK-IN (I'M SAFE)
- if (checkInBtn) {
-  checkInBtn.addEventListener("click", () => {
-    console.log("User checked in");
-
-    // STOP frontend timer
-    if (safetyInterval) {
-      clearInterval(safetyInterval);
-      safetyInterval = null;
-    }
-
-    alert("✅ You are marked SAFE. Timer stopped.");
-
-    // Backend cancel (local only)
-    fetch("http://localhost:5001/check-in", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "demoUser" })
-    }).catch(() => {
-      console.warn("Backend not available (expected on GitHub Pages)");
-    });
-  });
-}
 });
