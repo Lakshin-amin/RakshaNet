@@ -41,7 +41,7 @@ function showAlert(message, type = "info") {
 }
 
 function tryBackend(endpoint, payload = {}) {
-  fetch("http://localhost:5001" + endpoint, {
+  fetch("https://rakshanetwork-backend.onrender.com" + endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId: "demoUser", ...payload })
@@ -91,7 +91,7 @@ checkInBtn.addEventListener("click", () => {
   tryBackend("/check-in");
 });
 
-/* ---------------- SOS ---------------- */
+/* --- SOS ---- */
 document.getElementById("sosBtn").addEventListener("click", async () => {
   try {
     const pos = await new Promise((res, rej) =>
@@ -111,7 +111,7 @@ document.getElementById("sosBtn").addEventListener("click", async () => {
   }
 });
 
-/* ---------------- AI HELP ---------------- */
+/* --- AI HELP --- */
 document.getElementById("aiHelpBtn").addEventListener("click", async () => {
   const res = await getAISafetySuggestions(
     "Give 5 short safety tips for a woman walking alone at night."
@@ -120,7 +120,7 @@ document.getElementById("aiHelpBtn").addEventListener("click", async () => {
   alert(res?.choices?.[0]?.message?.content || "AI unavailable");
 });
 
-/* ---------------- LOGIN ---------------- */
+/* --- LOGIN --- */
 loginBtn.addEventListener("click", async () => {
   if (loginBtn.dataset.logged === "yes") {
     await logoutUser();
