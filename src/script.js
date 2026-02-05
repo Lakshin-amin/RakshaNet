@@ -117,7 +117,8 @@ if (startBtn) {
         showAlert("🚨 Timer expired! Emergency alert triggered.", "danger");
 
         // Reload alerts from SQLite logs
-        loadAlerts();
+        loadAlertsFromBackend();
+
       }
     }, 1000);
   });
@@ -141,8 +142,8 @@ if (checkInBtn) {
 
     // Backend cancel timer + save alert
     await tryBackend("/check-in");
+    loadAlertsFromBackend();
 
-    loadAlerts();
   });
 }
 
@@ -206,3 +207,43 @@ if (loginBtn) {
 /* ---LOAD ALERTS ON PAGE LOAD --- */
 
 loadAlerts();
+
+
+
+/* --- LOAD ALERTS FROM BACKEND (SQLite) --- */
+async function loadAlertsFromBackend() {
+  if (!alertsList) return;
+
+  try {
+    const res = await fetch(BACKEND_URL + "/logs");
+    const data = await res.json();
+
+    // Clear old UI alerts
+    alertsList.innerHTML = "";
+
+    // If no alerts yet
+    if (data.length === 0) {
+      alertsList.innerHTML =
+        "<p class='text-sm text-slate-500'>No alerts yet.</p>";
+      return;
+    }
+
+    // Show latest alerts first
+    data.reverse().forEach((alert) => {
+      const div = document.createElement("div");
+      div.className =
+        "p-3 border rounded bg-white shadow-sm";
+
+      div.innerHTML = `
+        <div class="font-semibold text-sm">⚠️ ${alert.reason}</div>
+        <div class="text-xs text-slate-500">${alert.time}</div>
+      `;
+
+      alertsList.appendChild(div);
+    });
+  } catch (err) {
+    console.log("Could not load alerts:", err);
+  }
+}
+// Load saved alerts automatically on refresh
+window.addEventListener("load", loadAlertsFromBackend);
