@@ -4,6 +4,7 @@ from threading import Timer
 from datetime import datetime
 from notifier import send_email_alert, send_sms_alert
 import database
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -12,7 +13,9 @@ timers = {}
 database.create_table()
 
 
-#  Auto trigger when timer expires
+
+# AUTO SOS TRIGGER (Timer Expiry)
+
 def auto_sos(user_id):
     timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
@@ -30,12 +33,15 @@ Time: {timestamp}
 Please check immediately.
 """
 
-    #  Send Email + SMS
+    # Send Email + SMS
     send_email_alert(alert_message)
     send_sms_alert(alert_message)
 
     print("✅ Alert saved + Notification sent")
 
+
+
+# START TIMER API
 
 @app.route("/start-timer", methods=["POST"])
 def start_timer():
@@ -43,15 +49,45 @@ def start_timer():
     user_id = data["userId"]
     minutes = int(data["minutes"])
 
+    # Cancel old timer if already running
     if user_id in timers:
         timers[user_id].cancel()
 
+    # Start new timer
     timer = Timer(minutes * 60, auto_sos, args=[user_id])
     timers[user_id] = timer
     timer.start()
 
+    print(f"⏱ Timer started for {user_id} ({minutes} min)")
+
     return jsonify({"message": "Safety timer started"})
 
+
+
+# CHECK-IN API (Cancel Timer)
+
+@app.route("/check-in", methods=["POST"])
+def check_in():
+    data = request.json
+    user_id = data["userId"]
+
+    # Cancel timer if running
+    if user_id in timers:
+        timers[user_id].cancel()
+        del timers[user_id]
+
+    timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+
+    # Save check-in log
+    database.insert_alert(user_id, "User checked in safely", timestamp)
+
+    print(f"✅ User checked in: {user_id}")
+
+    return jsonify({"message": "Timer cancelled successfully"})
+
+
+
+# LOGS API (SQLite Alerts)
 
 @app.route("/logs", methods=["GET"])
 def logs():
@@ -62,13 +98,17 @@ def logs():
     ])
 
 
+
+# HOME ROUTE
+
 @app.route("/")
 def home():
     return "RakshaNet Python Service Running ✅"
 
 
-if __name__ == "__main__":
-    import os
+# 
+# RUN SERVER (Render Compatible)
 
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port)
