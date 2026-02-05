@@ -2,10 +2,10 @@ import { initMap, setUserLocation } from "./map.js";
 import { getAISafetySuggestions } from "./ai.js";
 import { googleLogin, logoutUser, onUserStateChanged } from "./firebase-init.js";
 
-/* --- BACKEND URL (Render Deployment) --- */
+/* --- BACKEND URL --- */
 const BACKEND_URL = "https://rakshanetwork-backend.onrender.com";
 
-/* ---   STATE --- */
+/* --- STATE --- */
 let safetyInterval = null;
 let safetySeconds = 0;
 
@@ -22,9 +22,22 @@ const userEmail = document.getElementById("userEmail");
 const sosBtn = document.getElementById("sosBtn");
 const aiHelpBtn = document.getElementById("aiHelpBtn");
 
-/* --- SAFE ALERT UI --- */
-function showAlert(message, type = "info") {
+/* --- ALERT TYPE DETECTOR --- */
+function getAlertType(reason) {
+  reason = reason.toLowerCase();
+
+  if (reason.includes("expired")) return "danger";
+  if (reason.includes("checked in")) return "success";
+  if (reason.includes("started")) return "info";
+
+  return "info";
+}
+
+/* --- SHOW ALERT UI --- */
+function showAlert(reason, time) {
   if (!alertsList) return;
+
+  const type = getAlertType(reason);
 
   const colors = {
     info: "bg-slate-50 border-slate-200",
@@ -33,16 +46,17 @@ function showAlert(message, type = "info") {
   };
 
   const el = document.createElement("div");
-  el.className = `p-3 border rounded ${colors[type]}`;
+  el.className = `p-4 border rounded-xl shadow-sm ${colors[type]}`;
+
   el.innerHTML = `
-    <div class="text-sm font-semibold">${message}</div>
-    <div class="text-xs text-slate-500">${new Date().toLocaleString()}</div>
+    <div class="text-sm font-semibold">⚠️ ${reason}</div>
+    <div class="text-xs text-slate-500">${time}</div>
   `;
 
   alertsList.prepend(el);
 }
 
-/* --- BACKEND CALL HELPER --- */
+/* --- BACKEND CALL --- */
 async function tryBackend(endpoint, payload = {}) {
   try {
     const res = await fetch(BACKEND_URL + endpoint, {
@@ -58,7 +72,7 @@ async function tryBackend(endpoint, payload = {}) {
   }
 }
 
-/* --- LOAD ALERTS FROM BACKEND (SQLite) --- */
+/* --- LOAD ALERTS FROM SQLITE --- */
 async function loadAlerts() {
   if (!alertsList) return;
 
@@ -74,11 +88,12 @@ async function loadAlerts() {
       return;
     }
 
-    data.reverse().forEach((a) => {
-      showAlert(`${a.reason}`, "info");
+    // Latest first
+    data.reverse().forEach((alert) => {
+      showAlert(alert.reason, alert.time);
     });
-  } catch {
-    console.log("Could not load alerts from backend.");
+  } catch (err) {
+    console.log("Could not load alerts:", err);
   }
 }
 
@@ -90,7 +105,7 @@ navigator.geolocation.getCurrentPosition(
   () => console.log("Location not allowed")
 );
 
-/* --- SAFETY TIMER LOGIC --- */
+/* --- SAFETY TIMER --- */
 if (startBtn) {
   startBtn.addEventListener("click", async () => {
     if (safetyInterval) clearInterval(safetyInterval);
@@ -99,12 +114,13 @@ if (startBtn) {
     timerBox.classList.remove("hidden");
     timerText.innerText = safetySeconds;
 
-    showAlert("⏱ Safety timer started", "info");
-
-    //  Start backend timer (Python + SQLite + Datetime)
+    // Backend timer start (Python + SQLite + datetime)
     await tryBackend("/start-timer", { minutes: 1 });
 
-    // Frontend countdown UI
+    // Refresh UI alerts
+    loadAlerts();
+
+    // Countdown UI
     safetyInterval = setInterval(() => {
       safetySeconds--;
       timerText.innerText = safetySeconds;
@@ -114,11 +130,10 @@ if (startBtn) {
         safetyInterval = null;
         timerBox.classList.add("hidden");
 
-        showAlert("🚨 Timer expired! Emergency alert triggered.", "danger");
+        alert("🚨 Timer expired! Emergency triggered!");
 
-        // Reload alerts from SQLite logs
-        loadAlertsFromBackend();
-
+        // Reload alerts from backend after expiry
+        setTimeout(loadAlerts, 2000);
       }
     }, 1000);
   });
@@ -128,22 +143,19 @@ if (startBtn) {
 if (checkInBtn) {
   checkInBtn.addEventListener("click", async () => {
     if (!safetyInterval) {
-      showAlert("ℹ No active safety timer running.", "info");
+      alert("No active timer running.");
       return;
     }
 
     clearInterval(safetyInterval);
     safetyInterval = null;
-    safetySeconds = 0;
-
     timerBox.classList.add("hidden");
 
-    showAlert("✅ You checked in safely. Timer cancelled.", "success");
-
-    // Backend cancel timer + save alert
+    // Backend check-in (cancel timer + save SQLite log)
     await tryBackend("/check-in");
-    loadAlertsFromBackend();
 
+    // Refresh UI alerts
+    loadAlerts();
   });
 }
 
@@ -157,20 +169,18 @@ if (sosBtn) {
 
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      setUserLocation(lat, lng);
 
       const msg = `🚨 SOS! My location: https://maps.google.com/?q=${lat},${lng}`;
-
       window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
 
-      showAlert("🚨 SOS sent with live location", "danger");
+      alert("🚨 SOS sent successfully!");
     } catch {
       alert("Location permission required for SOS");
     }
   });
 }
 
-/* --- AI HELP BUTTON --- */
+/* --- AI HELP --- */
 if (aiHelpBtn) {
   aiHelpBtn.addEventListener("click", async () => {
     const res = await getAISafetySuggestions(
@@ -181,7 +191,7 @@ if (aiHelpBtn) {
   });
 }
 
-/* --- LOGIN SYSTEM --- */
+/* --- LOGIN --- */
 if (loginBtn) {
   loginBtn.addEventListener("click", async () => {
     if (loginBtn.dataset.logged === "yes") {
@@ -204,46 +214,5 @@ if (loginBtn) {
   });
 }
 
-/* ---LOAD ALERTS ON PAGE LOAD --- */
-
-loadAlerts();
-
-
-
-/* --- LOAD ALERTS FROM BACKEND (SQLite) --- */
-async function loadAlertsFromBackend() {
-  if (!alertsList) return;
-
-  try {
-    const res = await fetch(BACKEND_URL + "/logs");
-    const data = await res.json();
-
-    // Clear old UI alerts
-    alertsList.innerHTML = "";
-
-    // If no alerts yet
-    if (data.length === 0) {
-      alertsList.innerHTML =
-        "<p class='text-sm text-slate-500'>No alerts yet.</p>";
-      return;
-    }
-
-    // Show latest alerts first
-    data.reverse().forEach((alert) => {
-      const div = document.createElement("div");
-      div.className =
-        "p-3 border rounded bg-white shadow-sm";
-
-      div.innerHTML = `
-        <div class="font-semibold text-sm">⚠️ ${alert.reason}</div>
-        <div class="text-xs text-slate-500">${alert.time}</div>
-      `;
-
-      alertsList.appendChild(div);
-    });
-  } catch (err) {
-    console.log("Could not load alerts:", err);
-  }
-}
-// Load saved alerts automatically on refresh
-window.addEventListener("load", loadAlertsFromBackend);
+/* --- LOAD ALERTS ON REFRESH --- */
+window.addEventListener("load", loadAlerts);
