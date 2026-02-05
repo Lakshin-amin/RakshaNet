@@ -2,11 +2,11 @@ import { initMap, setUserLocation } from "./map.js";
 import { getAISafetySuggestions } from "./ai.js";
 import { googleLogin, logoutUser, onUserStateChanged } from "./firebase-init.js";
 
-/* ---------------- STATE ---------------- */
+/* --- STATE --- */
 let safetyInterval = null;
 let safetySeconds = 0;
 
-/* ---------------- ELEMENTS ---------------- */
+/* --- ELEMENTS --- */
 const startBtn = document.getElementById("startTimerBtn");
 const checkInBtn = document.getElementById("checkInBtn");
 const timerBox = document.getElementById("timerBox");
@@ -14,8 +14,10 @@ const timerText = document.getElementById("timerText");
 const alertsList = document.getElementById("alertsList");
 const loginBtn = document.getElementById("loginBtn");
 const userEmail = document.getElementById("userEmail");
+const BACKEND_URL = "https://rakshanetwork-backend.onrender.com";
 
-/* ---------------- MAP ---------------- */
+
+/* --- MAP --- */
 initMap();
 
 navigator.geolocation.getCurrentPosition(
@@ -23,7 +25,7 @@ navigator.geolocation.getCurrentPosition(
   () => console.log("Location not allowed")
 );
 
-/* ---------------- HELPERS ---------------- */
+/* --- HELPERS --- */
 function showAlert(message, type = "info") {
   const colors = {
     info: "bg-slate-50 border-slate-200",
@@ -41,7 +43,7 @@ function showAlert(message, type = "info") {
 }
 
 function tryBackend(endpoint, payload = {}) {
-  fetch("https://rakshanetwork-backend.onrender.com" + endpoint, {
+  fetch(BACKEND_URL + endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId: "demoUser", ...payload })
@@ -50,7 +52,7 @@ function tryBackend(endpoint, payload = {}) {
   });
 }
 
-/* ---------------- SAFETY TIMER ---------------- */
+/* --- SAFETY TIMER --- */
 startBtn.addEventListener("click", () => {
   if (safetyInterval) clearInterval(safetyInterval);
 
@@ -58,8 +60,12 @@ startBtn.addEventListener("click", () => {
   timerBox.classList.remove("hidden");
   timerText.innerText = safetySeconds;
 
-  showAlert("⏱ Safety timer started");
+  showAlert("⏱ Safety timer started", "info");
 
+  // ✅ Start backend timer immediately
+  tryBackend("/start-timer", { minutes: 1 });
+
+  // Frontend countdown UI
   safetyInterval = setInterval(() => {
     safetySeconds--;
     timerText.innerText = safetySeconds;
@@ -69,11 +75,13 @@ startBtn.addEventListener("click", () => {
       safetyInterval = null;
       timerBox.classList.add("hidden");
 
-      showAlert("🚨 Safety timer expired! Emergency triggered.", "danger");
-      tryBackend("/start-timer", { minutes: 1 });
+      showAlert("🚨 Timer expired! Alert sent.", "danger");
+
+      // ❌ Do NOT call /start-timer here again
     }
   }, 1000);
 });
+
 
 checkInBtn.addEventListener("click", () => {
   if (!safetyInterval) {
