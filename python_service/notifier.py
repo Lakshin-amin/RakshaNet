@@ -5,7 +5,9 @@ from twilio.rest import Client
 from config import *
 
 
+
 # --- EMAIL ALERT ---
+
 def send_email_alert(message):
     if not EMAIL_ENABLED:
         return
@@ -29,8 +31,10 @@ def send_email_alert(message):
         print("❌ Email failed:", e)
 
 
-# --- SMS ALERT --- 
-def send_sms_alert(message):
+
+# -- SMS ALERT (Twilio) ---
+
+def send_sms_alert(message, to_number):
     if not SMS_ENABLED:
         return
 
@@ -39,11 +43,11 @@ def send_sms_alert(message):
 
         sms = client.messages.create(
             body=message,
-            from_= +911234567890,  # replace with your Twilio number
-            to= +911234567890  # replace with your verified phone number
+            from_=TWILIO_PHONE_NUMBER,   # Twilio number from config.py
+            to= to_number                # Contact number from SQLite
         )
 
-        print("✅ SMS sent:", sms.sid)
+        print("✅ SMS sent successfully:", sms.sid)
 
     except Exception as e:
         print("❌ SMS failed:", e)

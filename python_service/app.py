@@ -9,12 +9,15 @@ import os
 app = Flask(__name__)
 CORS(app)
 
+# --- Store active timers in memory ---
 timers = {}
+
+# --- Create SQLite tables ---
 database.create_table()
 
 
 
-# AUTO SOS TRIGGER (Timer Expiry)
+# --- AUTO SOS TRIGGER (Runs when timer expires) ---
 
 def auto_sos(user_id):
     timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
@@ -33,15 +36,23 @@ Time: {timestamp}
 Please check immediately.
 """
 
-    # Send Email + SMS
+    #  Send Email Alert
     send_email_alert(alert_message)
-    send_sms_alert(alert_message)
 
-    print("✅ Alert saved + Notification sent")
+    # Send SMS to ALL emergency contacts saved in SQLite
+    contacts = database.get_contacts(user_id)
+
+    if len(contacts) == 0:
+        print("⚠️ No emergency contacts found.")
+    else:
+        for phone in contacts:
+            send_sms_alert(alert_message, phone)
+
+    print("✅ Alert saved + Notifications sent successfully!")
 
 
 
-# START TIMER API
+# --- START TIMER API ---
 
 @app.route("/start-timer", methods=["POST"])
 def start_timer():
@@ -64,7 +75,7 @@ def start_timer():
 
 
 
-# CHECK-IN API (Cancel Timer)
+# --- CHECK-IN API (Cancel Timer) ---
 
 @app.route("/check-in", methods=["POST"])
 def check_in():
@@ -78,20 +89,21 @@ def check_in():
 
     timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
-    # Save check-in log
+    # Save check-in log into SQLite
     database.insert_alert(user_id, "User checked in safely", timestamp)
 
-    print(f"✅ User checked in: {user_id}")
+    print(f"✅ User checked in safely: {user_id}")
 
     return jsonify({"message": "Timer cancelled successfully"})
 
 
 
-# LOGS API (SQLite Alerts)
+# --- LOGS API (Fetch Alerts from SQLite) ---
 
 @app.route("/logs", methods=["GET"])
 def logs():
     rows = database.fetch_alerts()
+
     return jsonify([
         {"user": r[0], "reason": r[1], "time": r[2]}
         for r in rows
@@ -99,15 +111,31 @@ def logs():
 
 
 
-# HOME ROUTE
+# --- ADD CONTACT API (Save emergency number) ---
+
+@app.route("/add-contact", methods=["POST"])
+def add_contact():
+    data = request.json
+    user_id = data["userId"]
+    phone = data["phone"]
+
+    database.add_contact(user_id, phone)
+
+    print(f"📌 Contact added: {phone} for {user_id}")
+
+    return jsonify({"message": "Emergency contact saved successfully"})
+
+
+
+# --- HOME ROUTE ---
 
 @app.route("/")
 def home():
     return "RakshaNet Python Service Running ✅"
 
 
-# 
-# RUN SERVER (Render Compatible)
+
+# --- RUN SERVER (Render Compatible) ---
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
