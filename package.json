@@ -1,8 +1,9 @@
 {
-  "name": "safety-app",
+  "name": "raksha-net",
   "version": "1.0.0",
   "scripts": {
     "start": "node api/openai.js"
   },
   "dependencies": {}
 }
+
