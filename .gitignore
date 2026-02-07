@@ -1,6 +1,8 @@
-# Python
-__pycache__/
-.venv/
+# Secrets
+python_service/config.py
 
 # Database
-alerts.db
+python_service/alerts.db
+
+# Cache
+__pycache__/

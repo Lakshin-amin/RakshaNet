@@ -43,11 +43,11 @@ def send_sms_alert(message, to_number):
 
         sms = client.messages.create(
             body=message,
-            from_=TWILIO_PHONE_NUMBER,   # Twilio number from config.py
-            to= to_number                # Contact number from SQLite
+            from_=TWILIO_PHONE_NUMBER,
+            to=to_number
         )
 
-        print("✅ SMS sent successfully:", sms.sid)
+        print("✅ SMS sent to", to_number)
 
     except Exception as e:
         print("❌ SMS failed:", e)

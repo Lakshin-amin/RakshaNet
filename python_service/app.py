@@ -6,26 +6,24 @@ from notifier import send_email_alert, send_sms_alert
 import database
 import os
 
+# Flask App Setup
 app = Flask(__name__)
 CORS(app)
 
-# --- Store active timers in memory ---
+# Store active timers in memory
 timers = {}
 
-# --- Create SQLite tables ---
+# Create SQLite tables at startup
 database.create_table()
 
-
-
-# --- AUTO SOS TRIGGER (Runs when timer expires) ---
-
+# AUTO SOS FUNCTION (Timer Expiry)
 def auto_sos(user_id):
     timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
-    # Save alert into SQLite
+    # Save alert into SQLite database
     database.insert_alert(user_id, "Check-in timer expired", timestamp)
 
-    # Alert message
+    # Emergency alert message
     alert_message = f"""
 🚨 RakshaNet Emergency Alert!
 
@@ -36,10 +34,10 @@ Time: {timestamp}
 Please check immediately.
 """
 
-    #  Send Email Alert
+    # ✅ Send Email Alert
     send_email_alert(alert_message)
 
-    # Send SMS to ALL emergency contacts saved in SQLite
+    # ✅ Send SMS to all emergency contacts saved in SQLite
     contacts = database.get_contacts(user_id)
 
     if len(contacts) == 0:
@@ -51,9 +49,7 @@ Please check immediately.
     print("✅ Alert saved + Notifications sent successfully!")
 
 
-
 # --- START TIMER API ---
-
 @app.route("/start-timer", methods=["POST"])
 def start_timer():
     data = request.json
@@ -74,9 +70,7 @@ def start_timer():
     return jsonify({"message": "Safety timer started"})
 
 
-
 # --- CHECK-IN API (Cancel Timer) ---
-
 @app.route("/check-in", methods=["POST"])
 def check_in():
     data = request.json
@@ -97,9 +91,7 @@ def check_in():
     return jsonify({"message": "Timer cancelled successfully"})
 
 
-
 # --- LOGS API (Fetch Alerts from SQLite) ---
-
 @app.route("/logs", methods=["GET"])
 def logs():
     rows = database.fetch_alerts()
@@ -110,9 +102,7 @@ def logs():
     ])
 
 
-
-# --- ADD CONTACT API (Save emergency number) ---
-
+# --- ADD CONTACT API ---
 @app.route("/add-contact", methods=["POST"])
 def add_contact():
     data = request.json
@@ -126,17 +116,13 @@ def add_contact():
     return jsonify({"message": "Emergency contact saved successfully"})
 
 
-
-# --- HOME ROUTE ---
-
+# HOME ROUTE
 @app.route("/")
 def home():
     return "RakshaNet Python Service Running ✅"
 
 
-
 # --- RUN SERVER (Render Compatible) ---
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port)
