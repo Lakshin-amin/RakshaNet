@@ -121,6 +121,29 @@ def get_contacts(user_id):
 
 
 
+@app.route("/get-contacts", methods=["GET"])
+def get_contacts():
+    user_id = request.args.get("userId")
+    contacts = database.get_contacts(user_id)
+
+    return jsonify([
+        {"phone": phone}
+        for phone in contacts
+    ])
+
+@app.route("/get-contacts", methods=["GET"])
+def get_contacts():
+    user_id = request.args.get("userId")
+
+    contacts = database.get_contacts(user_id)
+
+    return jsonify([
+        {"phone": phone}
+        for phone in contacts
+    ])
+
+
+
 # HOME ROUTE
 @app.route("/")
 def home():
