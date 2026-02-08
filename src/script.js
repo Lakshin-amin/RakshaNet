@@ -8,6 +8,7 @@ const BACKEND_URL = "https://rakshanetwork-backend.onrender.com";
 /* --- STATE --- */
 let safetyInterval = null;
 let safetySeconds = 0;
+let currentUserId = null;
 
 /* --- ELEMENTS --- */
 const startBtn = document.getElementById("startTimerBtn");
@@ -22,19 +23,18 @@ const userEmail = document.getElementById("userEmail");
 const sosBtn = document.getElementById("sosBtn");
 const aiHelpBtn = document.getElementById("aiHelpBtn");
 
-/* --- ALERT TYPE DETECTOR --- */
+/* --- ALERT COLOR TYPE --- */
 function getAlertType(reason) {
   reason = reason.toLowerCase();
 
   if (reason.includes("expired")) return "danger";
   if (reason.includes("checked in")) return "success";
-  if (reason.includes("started")) return "info";
 
   return "info";
 }
 
 /* --- SHOW ALERT UI --- */
-function showAlert(reason, time) {
+function renderAlert(reason, time) {
   if (!alertsList) return;
 
   const type = getAlertType(reason);
@@ -49,35 +49,49 @@ function showAlert(reason, time) {
   el.className = `p-4 border rounded-xl shadow-sm ${colors[type]}`;
 
   el.innerHTML = `
-    <div class="text-sm font-semibold">⚠️ ${reason}</div>
+    <div class="text-sm font-semibold">${reason}</div>
     <div class="text-xs text-slate-500">${time}</div>
   `;
 
   alertsList.prepend(el);
 }
 
-/* --- BACKEND CALL --- */
-async function tryBackend(endpoint, payload = {}) {
+/* --- BACKEND POST CALL --- */
+async function backendPost(endpoint, payload = {}) {
+  if (!currentUserId) {
+    alert("Please login first!");
+    return null;
+  }
+
   try {
     const res = await fetch(BACKEND_URL + endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "demoUser", ...payload }),
+      body: JSON.stringify({
+        userId: currentUserId,
+        ...payload,
+      }),
     });
 
     return await res.json();
   } catch (err) {
-    console.log("Backend unavailable (demo mode)");
+    console.log("Backend unavailable:", err);
     return null;
   }
 }
 
-/* --- LOAD ALERTS FROM SQLITE --- */
+/* --- LOAD ALERTS (User Specific) --- */
 async function loadAlerts() {
   if (!alertsList) return;
 
+  if (!currentUserId) {
+    alertsList.innerHTML =
+      "<p class='text-sm text-slate-500'>Login to see your alerts.</p>";
+    return;
+  }
+
   try {
-    const res = await fetch(BACKEND_URL + "/logs");
+    const res = await fetch(BACKEND_URL + "/logs/" + currentUserId);
     const data = await res.json();
 
     alertsList.innerHTML = "";
@@ -90,7 +104,7 @@ async function loadAlerts() {
 
     // Latest first
     data.reverse().forEach((alert) => {
-      showAlert(alert.reason, alert.time);
+      renderAlert(alert.reason, alert.time);
     });
   } catch (err) {
     console.log("Could not load alerts:", err);
@@ -105,20 +119,24 @@ navigator.geolocation.getCurrentPosition(
   () => console.log("Location not allowed")
 );
 
-/* --- SAFETY TIMER --- */
+/* --- START SAFETY TIMER --- */
 if (startBtn) {
   startBtn.addEventListener("click", async () => {
+    if (!currentUserId) {
+      alert("Please login first!");
+      return;
+    }
+
     if (safetyInterval) clearInterval(safetyInterval);
 
     safetySeconds = 60;
     timerBox.classList.remove("hidden");
     timerText.innerText = safetySeconds;
 
-    // Backend timer start (Python + SQLite + datetime)
-    await tryBackend("/start-timer", { minutes: 1 });
+    alert("⏱ Safety timer started!");
 
-    // Refresh UI alerts
-    loadAlerts();
+    // Start backend timer
+    await backendPost("/start-timer", { minutes: 1 });
 
     // Countdown UI
     safetyInterval = setInterval(() => {
@@ -130,9 +148,9 @@ if (startBtn) {
         safetyInterval = null;
         timerBox.classList.add("hidden");
 
-        alert("🚨 Timer expired! Emergency triggered!");
+        alert("🚨 Timer expired! Emergency alert triggered!");
 
-        // Reload alerts from backend after expiry
+        // Reload alerts after backend saves expiry
         setTimeout(loadAlerts, 2000);
       }
     }, 1000);
@@ -151,10 +169,11 @@ if (checkInBtn) {
     safetyInterval = null;
     timerBox.classList.add("hidden");
 
-    // Backend check-in (cancel timer + save SQLite log)
-    await tryBackend("/check-in");
+    // Cancel timer in backend + save check-in
+    await backendPost("/check-in");
 
-    // Refresh UI alerts
+    alert("✅ You checked in safely!");
+
     loadAlerts();
   });
 }
@@ -171,6 +190,7 @@ if (sosBtn) {
       const lng = pos.coords.longitude;
 
       const msg = `🚨 SOS! My location: https://maps.google.com/?q=${lat},${lng}`;
+
       window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
 
       alert("🚨 SOS sent successfully!");
@@ -191,7 +211,7 @@ if (aiHelpBtn) {
   });
 }
 
-/* --- LOGIN --- */
+/* --- LOGIN SYSTEM --- */
 if (loginBtn) {
   loginBtn.addEventListener("click", async () => {
     if (loginBtn.dataset.logged === "yes") {
@@ -206,13 +226,85 @@ if (loginBtn) {
       loginBtn.innerText = "Logout";
       loginBtn.dataset.logged = "yes";
       userEmail.innerText = user.email;
+
+      // ✅ Store real user ID
+      currentUserId = user.email;
+
+      alert("👤 Logged in as " + currentUserId);
+
+      loadAlerts();
     } else {
       loginBtn.innerText = "Login";
       loginBtn.dataset.logged = "no";
       userEmail.innerText = "";
+
+      currentUserId = null;
+
+      alertsList.innerHTML =
+        "<p class='text-sm text-slate-500'>Login to see your alerts.</p>";
     }
   });
 }
 
-/* --- LOAD ALERTS ON REFRESH --- */
+/* ---------------- CONTACTS UI ---------------- */
+
+const contactInput = document.getElementById("contactInput");
+const saveContactBtn = document.getElementById("saveContactBtn");
+const contactsList = document.getElementById("contactsList");
+
+/* Load Contacts from Backend */
+async function loadContacts() {
+  if (!contactsList) return;
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/contacts/demoUser`);
+    const data = await res.json();
+
+    contactsList.innerHTML = "";
+
+    if (data.contacts.length === 0) {
+      contactsList.innerHTML =
+        "<p class='text-sm text-slate-500'>No contacts added yet.</p>";
+      return;
+    }
+
+    data.contacts.forEach((phone) => {
+      const div = document.createElement("div");
+      div.className =
+        "p-2 border rounded-lg bg-slate-50 flex justify-between items-center";
+
+      div.innerHTML = `
+        <span class="text-sm font-medium">${phone}</span>
+      `;
+
+      contactsList.appendChild(div);
+    });
+  } catch (err) {
+    console.log("Failed to load contacts:", err);
+  }
+}
+
+/* Save Contact */
+if (saveContactBtn) {
+  saveContactBtn.addEventListener("click", async () => {
+    const phone = contactInput.value.trim();
+
+    if (!phone.startsWith("+")) {
+      alert("Please enter number in format +91XXXXXXXXXX");
+      return;
+    }
+
+    await tryBackend("/add-contact", { phone });
+
+    contactInput.value = "";
+    alert("✅ Emergency contact saved!");
+
+    loadContacts();
+  });
+}
+
+/* Load Contacts on Page Refresh */
+window.addEventListener("load", loadContacts);
+
+/* --- LOAD ON REFRESH --- */
 window.addEventListener("load", loadAlerts);

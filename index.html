@@ -96,6 +96,37 @@
   </section>
 </main>
 
+<!-- Emergency Contacts Section -->
+<section class="mt-6 bg-white rounded-2xl p-6 shadow-lg">
+  <h3 class="text-lg font-semibold mb-2">📞 Emergency Contacts</h3>
+  <p class="text-sm text-slate-600 mb-4">
+    Add trusted contacts who will receive SMS alerts when the timer expires.
+  </p>
+
+  <!-- Input -->
+  <div class="flex gap-2">
+    <input
+      id="contactInput"
+      type="text"
+      placeholder="+91XXXXXXXXXX"
+      class="flex-1 border rounded-lg p-2 text-sm"
+    />
+
+    <button
+      id="saveContactBtn"
+      class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+    >
+      Save
+    </button>
+  </div>
+
+  <!-- Contact List -->
+  <div id="contactsList" class="mt-4 space-y-2">
+    <p class="text-sm text-slate-500">No contacts added yet.</p>
+  </div>
+</section>
+
+
 <!-- SCRIPTS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module" src="src/script.js"></script>

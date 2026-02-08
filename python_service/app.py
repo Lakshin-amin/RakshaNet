@@ -92,10 +92,9 @@ def check_in():
 
 
 # --- LOGS API (Fetch Alerts from SQLite) ---
-@app.route("/logs", methods=["GET"])
-def logs():
-    rows = database.fetch_alerts()
-
+@app.route("/logs/<user_id>", methods=["GET"])
+def logs(user_id):
+    rows = database.fetch_alerts_for_user(user_id)
     return jsonify([
         {"user": r[0], "reason": r[1], "time": r[2]}
         for r in rows
@@ -114,6 +113,12 @@ def add_contact():
     print(f"📌 Contact added: {phone} for {user_id}")
 
     return jsonify({"message": "Emergency contact saved successfully"})
+
+@app.route("/contacts/<user_id>", methods=["GET"])
+def get_contacts(user_id):
+    contacts = database.get_contacts(user_id)
+    return jsonify({"contacts": contacts})
+
 
 
 # HOME ROUTE

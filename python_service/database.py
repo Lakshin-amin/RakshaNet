@@ -13,7 +13,7 @@ def create_table():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Alerts table (already working)
+    # Alerts Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sos_alerts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,7 +23,7 @@ def create_table():
         )
     """)
 
-    # Emergency Contacts table (NEW)
+    # Emergency Contacts Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS contacts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,21 +50,34 @@ def insert_alert(user, reason, time):
     conn.close()
 
 
-def fetch_alerts():
+def fetch_alerts_for_user(user):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT user, reason, time FROM sos_alerts")
-    rows = cursor.fetchall()
+    cursor.execute(
+        "SELECT user, reason, time FROM sos_alerts WHERE user=? ORDER BY id DESC",
+        (user,)
+    )
 
+    rows = cursor.fetchall()
     conn.close()
     return rows
 
 
-# ---------------- CONTACT FUNCTIONS (NEW) ----------------
+# ---------------- CONTACT FUNCTIONS ----------------
 def add_contact(user, phone):
     conn = get_connection()
     cursor = conn.cursor()
+
+    # Prevent duplicate contacts
+    cursor.execute(
+        "SELECT phone FROM contacts WHERE user=? AND phone=?",
+        (user, phone)
+    )
+
+    if cursor.fetchone():
+        conn.close()
+        return
 
     cursor.execute(
         "INSERT INTO contacts (user, phone) VALUES (?, ?)",
@@ -87,5 +100,4 @@ def get_contacts(user):
     rows = cursor.fetchall()
     conn.close()
 
-    # Return list of phone numbers
     return [r[0] for r in rows]
