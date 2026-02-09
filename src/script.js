@@ -2,6 +2,8 @@ import { initMap, setUserLocation } from "./map.js";
 import { getAISafetySuggestions } from "./ai.js";
 import { googleLogin, logoutUser, onUserStateChanged } from "./firebase-init.js";
 
+console.log("✅ script.js file is running!");
+
 /* --- BACKEND URL --- */
 const BACKEND_URL = "https://rakshanetwork-backend.onrender.com";
 
@@ -13,8 +15,10 @@ let currentUserId = null;
 /* --- ELEMENTS --- */
 const startBtn = document.getElementById("startTimerBtn");
 const checkInBtn = document.getElementById("checkInBtn");
+
 const timerBox = document.getElementById("timerBox");
 const timerText = document.getElementById("timerText");
+
 const alertsList = document.getElementById("alertsList");
 
 const loginBtn = document.getElementById("loginBtn");
@@ -23,7 +27,20 @@ const userEmail = document.getElementById("userEmail");
 const sosBtn = document.getElementById("sosBtn");
 const aiHelpBtn = document.getElementById("aiHelpBtn");
 
-/* --- ALERT COLOR TYPE --- */
+/* Contacts UI */
+const contactInput = document.getElementById("contactInput");
+const saveContactBtn = document.getElementById("saveContactBtn");
+const contactsList = document.getElementById("contactsList");
+
+/* --- MAP INIT --- */
+initMap();
+
+navigator.geolocation.getCurrentPosition(
+  (pos) => setUserLocation(pos.coords.latitude, pos.coords.longitude),
+  () => console.log("Location not allowed")
+);
+
+/* --- ALERT COLORS --- */
 function getAlertType(reason) {
   reason = reason.toLowerCase();
 
@@ -33,7 +50,7 @@ function getAlertType(reason) {
   return "info";
 }
 
-/* --- SHOW ALERT UI --- */
+/* --- SHOW ALERT IN UI --- */
 function renderAlert(reason, time) {
   if (!alertsList) return;
 
@@ -56,10 +73,10 @@ function renderAlert(reason, time) {
   alertsList.prepend(el);
 }
 
-/* --- BACKEND POST CALL --- */
+/* --- BACKEND POST HELPER --- */
 async function backendPost(endpoint, payload = {}) {
   if (!currentUserId) {
-    alert("Please login first!");
+    alert("⚠️ Please login first!");
     return null;
   }
 
@@ -75,7 +92,7 @@ async function backendPost(endpoint, payload = {}) {
 
     return await res.json();
   } catch (err) {
-    console.log("Backend unavailable:", err);
+    console.log("❌ Backend error:", err);
     return null;
   }
 }
@@ -102,7 +119,6 @@ async function loadAlerts() {
       return;
     }
 
-    // Latest first
     data.reverse().forEach((alert) => {
       renderAlert(alert.reason, alert.time);
     });
@@ -111,65 +127,74 @@ async function loadAlerts() {
   }
 }
 
-/* --- MAP INIT --- */
-initMap();
-
-navigator.geolocation.getCurrentPosition(
-  (pos) => setUserLocation(pos.coords.latitude, pos.coords.longitude),
-  () => console.log("Location not allowed")
-);
-
-/* --- START SAFETY TIMER --- */
+/* --- SAFETY TIMER --- */
+/* --- SAFETY TIMER --- */
 if (startBtn) {
   startBtn.addEventListener("click", async () => {
+    console.log("🔥 Start button clicked!");
+
+    // Must be logged in
     if (!currentUserId) {
-      alert("Please login first!");
+      alert("⚠️ Please login first!");
       return;
     }
 
-    if (safetyInterval) clearInterval(safetyInterval);
+    // Clear old timer if already running
+    if (safetyInterval) {
+      clearInterval(safetyInterval);
+    }
 
+    // Start countdown at 60
     safetySeconds = 60;
+
+    // Show timer UI immediately
     timerBox.classList.remove("hidden");
     timerText.innerText = safetySeconds;
 
-    alert("⏱ Safety timer started!");
+    console.log("⏳ Countdown started");
 
-    // Start backend timer
-    await backendPost("/start-timer", { minutes: 1 });
+    // ✅ Start backend timer (do NOT await, so UI never freezes)
+    backendPost("/start-timer", { minutes: 1 });
 
-    // Countdown UI
+    // ✅ Frontend countdown starts instantly
     safetyInterval = setInterval(() => {
       safetySeconds--;
+
+      // Update UI
       timerText.innerText = safetySeconds;
 
+      console.log("Remaining:", safetySeconds);
+
+      // Timer finished
       if (safetySeconds <= 0) {
         clearInterval(safetyInterval);
         safetyInterval = null;
+
         timerBox.classList.add("hidden");
 
-        alert("🚨 Timer expired! Emergency alert triggered!");
+        alert("🚨 Timer expired! Emergency triggered!");
 
-        // Reload alerts after backend saves expiry
+        // Reload alerts after expiry
         setTimeout(loadAlerts, 2000);
       }
     }, 1000);
   });
 }
 
+
 /* --- CHECK-IN BUTTON --- */
 if (checkInBtn) {
   checkInBtn.addEventListener("click", async () => {
     if (!safetyInterval) {
-      alert("No active timer running.");
+      alert("ℹ No active timer running.");
       return;
     }
 
     clearInterval(safetyInterval);
     safetyInterval = null;
+
     timerBox.classList.add("hidden");
 
-    // Cancel timer in backend + save check-in
     await backendPost("/check-in");
 
     alert("✅ You checked in safely!");
@@ -195,7 +220,7 @@ if (sosBtn) {
 
       alert("🚨 SOS sent successfully!");
     } catch {
-      alert("Location permission required for SOS");
+      alert("Location permission required!");
     }
   });
 }
@@ -227,12 +252,12 @@ if (loginBtn) {
       loginBtn.dataset.logged = "yes";
       userEmail.innerText = user.email;
 
-      // ✅ Store real user ID
       currentUserId = user.email;
 
       alert("👤 Logged in as " + currentUserId);
 
       loadAlerts();
+      loadContacts();
     } else {
       loginBtn.innerText = "Login";
       loginBtn.dataset.logged = "no";
@@ -246,18 +271,13 @@ if (loginBtn) {
   });
 }
 
-/* ---------------- CONTACTS UI ---------------- */
-
-const contactInput = document.getElementById("contactInput");
-const saveContactBtn = document.getElementById("saveContactBtn");
-const contactsList = document.getElementById("contactsList");
-
-/* Load Contacts from Backend */
+/* --- CONTACTS UI --- */
 async function loadContacts() {
   if (!contactsList) return;
+  if (!currentUserId) return;
 
   try {
-    const res = await fetch(`${BACKEND_URL}/contacts/demoUser`);
+    const res = await fetch(`${BACKEND_URL}/contacts/${currentUserId}`);
     const data = await res.json();
 
     contactsList.innerHTML = "";
@@ -273,10 +293,7 @@ async function loadContacts() {
       div.className =
         "p-2 border rounded-lg bg-slate-50 flex justify-between items-center";
 
-      div.innerHTML = `
-        <span class="text-sm font-medium">${phone}</span>
-      `;
-
+      div.innerHTML = `<span class="text-sm font-medium">${phone}</span>`;
       contactsList.appendChild(div);
     });
   } catch (err) {
@@ -290,11 +307,11 @@ if (saveContactBtn) {
     const phone = contactInput.value.trim();
 
     if (!phone.startsWith("+")) {
-      alert("Please enter number in format +91XXXXXXXXXX");
+      alert("Enter number like +91XXXXXXXXXX");
       return;
     }
 
-    await tryBackend("/add-contact", { phone });
+    await backendPost("/add-contact", { phone });
 
     contactInput.value = "";
     alert("✅ Emergency contact saved!");
@@ -303,8 +320,7 @@ if (saveContactBtn) {
   });
 }
 
-/* Load Contacts on Page Refresh */
-window.addEventListener("load", loadContacts);
-
 /* --- LOAD ON REFRESH --- */
-window.addEventListener("load", loadAlerts);
+window.addEventListener("load", () => {
+  loadAlerts();
+});
