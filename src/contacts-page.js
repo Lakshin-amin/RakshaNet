@@ -14,51 +14,57 @@ const contactsList = document.getElementById("contactsList");
 async function loadContacts() {
   if (!currentUserId) return;
 
-  const res = await fetch(`${BACKEND_URL}/contacts/${currentUserId}`);
-  const data = await res.json();
+  try {
+    const res = await fetch(`${BACKEND_URL}/contacts/${currentUserId}`);
+    const data = await res.json();
 
-  contactsList.innerHTML = "";
+    contactsList.innerHTML = "";
 
-  if (data.contacts.length === 0) {
-    contactsList.innerHTML =
-      "<p class='text-sm text-slate-500'>No contacts added yet.</p>";
-    return;
+    if (data.contacts.length === 0) {
+      contactsList.innerHTML =
+        "<p class='text-sm text-slate-500'>No contacts added yet.</p>";
+      return;
+    }
+
+    data.contacts.forEach((phone) => {
+      const div = document.createElement("div");
+      div.className =
+        "p-3 border rounded-lg bg-slate-50 text-sm font-medium";
+
+      div.innerText = phone;
+
+      contactsList.appendChild(div);
+    });
+  } catch (err) {
+    console.log("Failed to load contacts:", err);
   }
-
-  data.contacts.forEach((phone) => {
-    const div = document.createElement("div");
-    div.className =
-      "p-3 border rounded-lg bg-slate-50 text-sm font-medium";
-
-    div.innerText = phone;
-
-    contactsList.appendChild(div);
-  });
 }
 
 /* Save Contact */
-saveBtn.addEventListener("click", async () => {
-  const phone = contactInput.value.trim();
+if (saveBtn) {
+  saveBtn.addEventListener("click", async () => {
+    const phone = contactInput.value.trim();
 
-  if (!phone.startsWith("+")) {
-    alert("Enter number in format +91XXXXXXXXXX");
-    return;
-  }
+    if (!phone.startsWith("+")) {
+      alert("Enter number like +91XXXXXXXXXX");
+      return;
+    }
 
-  await fetch(`${BACKEND_URL}/add-contact`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId: currentUserId,
-      phone: phone,
-    }),
+    await fetch(`${BACKEND_URL}/add-contact`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: currentUserId,
+        phone: phone,
+      }),
+    });
+
+    alert("✅ Contact saved!");
+
+    contactInput.value = "";
+    loadContacts();
   });
-
-  alert("✅ Contact saved!");
-
-  contactInput.value = "";
-  loadContacts();
-});
+}
 
 /* Firebase Login Detection */
 onUserStateChanged((user) => {
