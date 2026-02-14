@@ -8,21 +8,21 @@ import os
 from notifier import send_email_alert, send_sms_alert
 import database
 
-# -- Flask App Setup ---
+# --- Flask App Setup ---
 app = Flask(__name__)
 CORS(app)
 
 # --- Store active timers in memory ---
 timers = {}
 
-# --- Create SQLite tables at startup --- 
+# --- Create SQLite tables at startup ---
 database.create_table()
 
-# Set timezone to India (IST)
+# --- Set timezone to India (IST) ---
 ist = pytz.timezone("Asia/Kolkata")
 
 
-# --- AUTO SOS FUNCTION (Timer Expiry) --- 
+# AUTO SOS FUNCTION (Runs when timer expires)
 def auto_sos(user_id):
     timestamp = datetime.now(ist).strftime("%d-%m-%Y %H:%M:%S")
 
@@ -40,10 +40,10 @@ Time: {timestamp}
 Please check immediately.
 """
 
-    # Send Email Alert
+    # ✅ Send Email Alert
     send_email_alert(alert_message)
 
-    # Send SMS to all emergency contacts saved in SQLite
+    # ✅ Send SMS to all emergency contacts saved in SQLite
     contacts = database.get_contacts(user_id)
 
     if len(contacts) == 0:
@@ -55,7 +55,7 @@ Please check immediately.
     print("✅ Alert saved + Notifications sent successfully!")
 
 
-# --- START TIMER API ---
+# START TIMER API
 @app.route("/start-timer", methods=["POST"])
 def start_timer():
     data = request.json
@@ -76,7 +76,7 @@ def start_timer():
     return jsonify({"message": "Safety timer started"})
 
 
-# --- CHECK-IN API (Cancel Timer) ---
+# CHECK-IN API (Cancel Timer)
 @app.route("/check-in", methods=["POST"])
 def check_in():
     data = request.json
@@ -97,7 +97,7 @@ def check_in():
     return jsonify({"message": "Timer cancelled successfully"})
 
 
-# --- LOGS API (User Specific Alerts) ---
+# LOGS API (User Specific Alerts)
 @app.route("/logs/<user_id>", methods=["GET"])
 def logs(user_id):
     rows = database.fetch_alerts_for_user(user_id)
@@ -108,7 +108,7 @@ def logs(user_id):
     ])
 
 
-# --- ADD CONTACT API ---
+# ADD CONTACT API
 @app.route("/add-contact", methods=["POST"])
 def add_contact():
     data = request.json
@@ -121,33 +121,21 @@ def add_contact():
 
     return jsonify({"message": "Emergency contact saved successfully"})
 
-# --- GET CONTACTS API ---
+
+# GET CONTACTS API (ONLY ONE)
 @app.route("/contacts/<user_id>", methods=["GET"])
-def contacts(user_id):
+def get_contacts(user_id):
     contacts = database.get_contacts(user_id)
     return jsonify({"contacts": contacts})
 
 
-
-# --- GET CONTACTS API (User Specific) ---
-@app.route("/contacts/<user_id>", methods=["GET"])
-def contacts(user_id):
-    contact_list = database.get_contacts(user_id)
-
-    return jsonify([
-        {"phone": phone}
-        for phone in contact_list
-    ])
-
-
-# --- HOME ROUTE ---
+# HOME ROUTE
 @app.route("/")
 def home():
     return "RakshaNet Python Service Running ✅"
 
 
-# --- RUN SERVER (Render Compatible) ---
-# 
+# RUN SERVER (Render Compatible)
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port)
