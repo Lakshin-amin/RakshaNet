@@ -3,25 +3,48 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Contacts — SafeStep</title>
+  <title>Emergency Contacts — RakshaNet</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="../styles/style.css">
 </head>
+
 <body class="bg-slate-50 p-6">
-  <a href="../index.html" class="text-blue-600 mb-4 inline-block">← Back</a>
-  <h1 class="text-2xl font-bold mb-4">Emergency Contacts</h1>
 
-  <div class="max-w-xl bg-white p-4 rounded-xl shadow">
-    <form id="contactForm" class="grid grid-cols-1 gap-3">
-      <input id="name" placeholder="Name" class="p-3 border rounded" />
-      <input id="phone" placeholder="Phone (with country code, e.g. +91xxxxxxxxxx)" class="p-3 border rounded" />
-      <button class="bg-blue-600 text-white p-3 rounded" type="submit">Add Contact</button>
-    </form>
+  <a href="../index.html" class="text-blue-600 text-sm">← Back</a>
 
-    <div id="contactList" class="mt-4 space-y-3"></div>
+  <h1 class="text-2xl font-bold mt-4 mb-4">
+    📞 Emergency Contacts
+  </h1>
+
+  <!-- ADD CONTACT FORM -->
+  <div class="max-w-lg bg-white p-5 rounded-xl shadow">
+
+    <input
+      id="contactInput"
+      type="text"
+      placeholder="+91XXXXXXXXXX"
+      class="w-full border p-3 rounded-lg mb-3"
+    />
+
+    <button
+      id="saveContactBtn"
+      class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700"
+    >
+      Save Contact
+    </button>
+
+    <!-- CONTACT LIST -->
+    <div class="mt-6">
+      <h2 class="font-semibold mb-2">Saved Contacts</h2>
+      <div id="contactsList" class="space-y-2">
+        <p class="text-sm text-slate-500">No contacts added yet.</p>
+      </div>
+    </div>
+
   </div>
 
-  <script type="module" src="../src/firebase-init.js"></script>
-    <script type="module" src="../src/contacts-page.js"></script>
+  <!-- SCRIPT -->
+  <script type="module" src="../src/contacts-page.js"></script>
+
 </body>
 </html>

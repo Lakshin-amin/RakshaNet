@@ -1,64 +1,50 @@
-/* --- BACKEND URL --- */
+import { onUserStateChanged } from "./firebase-init.js";
+
+/* Backend URL */
 const BACKEND_URL = "https://rakshanetwork-backend.onrender.com";
 
-/* --- ELEMENTS --- */
-const form = document.getElementById("contactForm");
-const nameInput = document.getElementById("name");
-const phoneInput = document.getElementById("phone");
-const contactList = document.getElementById("contactList");
+let currentUserId = null;
 
-/* --- Current User (for now demoUser) --- */
-let currentUserId = "demoUser";
+/* Elements */
+const contactInput = document.getElementById("contactInput");
+const saveBtn = document.getElementById("saveContactBtn");
+const contactsList = document.getElementById("contactsList");
 
-/* --- Render Contact UI --- */
-function renderContact(phone) {
-  const div = document.createElement("div");
-
-  div.className =
-    "p-3 border rounded-lg bg-slate-50 flex justify-between items-center";
-
-  div.innerHTML = `
-    <span class="text-sm font-medium">${phone}</span>
-  `;
-
-  contactList.appendChild(div);
-}
-
-/* --- Load Contacts from Backend --- */
+/* Load Contacts */
 async function loadContacts() {
-  contactList.innerHTML = "";
+  if (!currentUserId) return;
 
-  try {
-    const res = await fetch(
-      `${BACKEND_URL}/get-contacts?userId=${currentUserId}`
-    );
+  const res = await fetch(`${BACKEND_URL}/contacts/${currentUserId}`);
+  const data = await res.json();
 
-    const data = await res.json();
+  contactsList.innerHTML = "";
 
-    if (data.length === 0) {
-      contactList.innerHTML =
-        "<p class='text-sm text-slate-500'>No contacts added yet.</p>";
-      return;
-    }
-
-    data.forEach((c) => renderContact(c.phone));
-  } catch (err) {
-    console.log("Failed to load contacts:", err);
-  }
-}
-
-/* --- Add Contact Form Submit --- */
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const phone = phoneInput.value.trim();
-
-  if (!phone.startsWith("+")) {
-    alert("Phone must include country code, e.g. +91xxxxxxxxxx");
+  if (data.contacts.length === 0) {
+    contactsList.innerHTML =
+      "<p class='text-sm text-slate-500'>No contacts added yet.</p>";
     return;
   }
 
-  // Save contact into backend
+  data.contacts.forEach((phone) => {
+    const div = document.createElement("div");
+    div.className =
+      "p-3 border rounded-lg bg-slate-50 text-sm font-medium";
+
+    div.innerText = phone;
+
+    contactsList.appendChild(div);
+  });
+}
+
+/* Save Contact */
+saveBtn.addEventListener("click", async () => {
+  const phone = contactInput.value.trim();
+
+  if (!phone.startsWith("+")) {
+    alert("Enter number in format +91XXXXXXXXXX");
+    return;
+  }
+
   await fetch(`${BACKEND_URL}/add-contact`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -68,13 +54,19 @@ form.addEventListener("submit", async (e) => {
     }),
   });
 
-  phoneInput.value = "";
-  nameInput.value = "";
+  alert("✅ Contact saved!");
 
-  alert("✅ Contact saved successfully!");
-
+  contactInput.value = "";
   loadContacts();
 });
 
-/* --- Load Automatically on Page Open --- */
-window.addEventListener("load", loadContacts);
+/* Firebase Login Detection */
+onUserStateChanged((user) => {
+  if (user) {
+    currentUserId = user.email;
+    loadContacts();
+  } else {
+    alert("Please login first to manage contacts.");
+    window.location.href = "../index.html";
+  }
+});

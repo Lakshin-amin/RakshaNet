@@ -121,6 +121,13 @@ def add_contact():
 
     return jsonify({"message": "Emergency contact saved successfully"})
 
+# --- GET CONTACTS API ---
+@app.route("/contacts/<user_id>", methods=["GET"])
+def contacts(user_id):
+    contacts = database.get_contacts(user_id)
+    return jsonify({"contacts": contacts})
+
+
 
 # --- GET CONTACTS API (User Specific) ---
 @app.route("/contacts/<user_id>", methods=["GET"])
