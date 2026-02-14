@@ -1,55 +1,78 @@
 import { onUserStateChanged } from "./firebase-init.js";
 
-/* Backend URL */
+/* --- BACKEND URL --- */
 const BACKEND_URL = "https://rakshanetwork-backend.onrender.com";
 
-let currentUserId = null;
-
-/* Elements */
+/* --- ELEMENTS (from your HTML) --- */
 const contactInput = document.getElementById("contactInput");
-const saveBtn = document.getElementById("saveContactBtn");
+const saveContactBtn = document.getElementById("saveContactBtn");
 const contactsList = document.getElementById("contactsList");
 
-/* Load Contacts */
+/* --- STATE --- */
+let currentUserId = null;
+
+/* ======================================================
+   Render Contact
+====================================================== */
+function renderContact(phone) {
+  const div = document.createElement("div");
+
+  div.className =
+    "p-3 border rounded-lg bg-slate-50 flex justify-between items-center";
+
+  div.innerHTML = `
+    <span class="text-sm font-medium">${phone}</span>
+    <span class="text-xs text-green-600">Saved</span>
+  `;
+
+  contactsList.appendChild(div);
+}
+
+/* ======================================================
+   Load Contacts from Backend
+====================================================== */
 async function loadContacts() {
-  if (!currentUserId) return;
+  if (!contactsList) return;
+
+  if (!currentUserId) {
+    contactsList.innerHTML =
+      "<p class='text-sm text-slate-500'>⚠️ Please login first.</p>";
+    return;
+  }
 
   try {
     const res = await fetch(`${BACKEND_URL}/contacts/${currentUserId}`);
     const data = await res.json();
 
+    const contacts = data.contacts || [];
+
     contactsList.innerHTML = "";
 
-    if (data.contacts.length === 0) {
+    if (contacts.length === 0) {
       contactsList.innerHTML =
         "<p class='text-sm text-slate-500'>No contacts added yet.</p>";
       return;
     }
 
-    data.contacts.forEach((phone) => {
-      const div = document.createElement("div");
-      div.className =
-        "p-3 border rounded-lg bg-slate-50 text-sm font-medium";
-
-      div.innerText = phone;
-
-      contactsList.appendChild(div);
-    });
+    contacts.forEach((phone) => renderContact(phone));
   } catch (err) {
     console.log("Failed to load contacts:", err);
+
+    contactsList.innerHTML =
+      "<p class='text-sm text-red-500'>Error loading contacts.</p>";
   }
 }
 
-/* Save Contact */
-if (saveBtn) {
-  saveBtn.addEventListener("click", async () => {
-    const phone = contactInput.value.trim();
+/* ======================================================
+   Save Contact to Backend
+====================================================== */
+async function saveContact(phone) {
+  if (!currentUserId) {
+    alert("⚠️ Please login first!");
+    return;
+  }
 
-    if (!phone.startsWith("+")) {
-      alert("Enter number like +91XXXXXXXXXX");
-      return;
-    }
-
+  try {
     await fetch(`${BACKEND_URL}/add-contact`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,20 +82,46 @@ if (saveBtn) {
       }),
     });
 
-    alert("✅ Contact saved!");
+    alert("✅ Contact Saved!");
+
+    loadContacts();
+  } catch (err) {
+    console.log("Failed to save contact:", err);
+    alert("❌ Could not save contact");
+  }
+}
+
+/* ======================================================
+   Button Click (Save Contact)
+====================================================== */
+if (saveContactBtn) {
+  saveContactBtn.addEventListener("click", async () => {
+    const phone = contactInput.value.trim();
+
+    if (!phone.startsWith("+")) {
+      alert("Enter number like +91XXXXXXXXXX");
+      return;
+    }
+
+    await saveContact(phone);
 
     contactInput.value = "";
-    loadContacts();
   });
 }
 
-/* Firebase Login Detection */
+/* ======================================================
+   Firebase Auth Listener
+====================================================== */
 onUserStateChanged((user) => {
   if (user) {
     currentUserId = user.email;
+    console.log("✅ Logged in:", currentUserId);
+
     loadContacts();
   } else {
-    alert("Please login first to manage contacts.");
-    window.location.href = "../index.html";
+    currentUserId = null;
+
+    contactsList.innerHTML =
+      "<p class='text-sm text-slate-500'>⚠️ Please login first.</p>";
   }
 });

@@ -36,6 +36,7 @@
     <!-- CONTACT LIST -->
     <div class="mt-6">
       <h2 class="font-semibold mb-2">Saved Contacts</h2>
+
       <div id="contactsList" class="space-y-2">
         <p class="text-sm text-slate-500">No contacts added yet.</p>
       </div>
@@ -43,7 +44,10 @@
 
   </div>
 
-  <!-- SCRIPT -->
+  <!--  IMPORTANT: Load Firebase First -->
+  <script type="module" src="../src/firebase-init.js"></script>
+
+  <!--  Then Load Contacts Page Logic -->
   <script type="module" src="../src/contacts-page.js"></script>
 
 </body>
