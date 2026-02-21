@@ -3,52 +3,73 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <title>Emergency Contacts — RakshaNet</title>
-
-  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --red:#e8193c; --green:#1dd882; --bg:#0c0c0e; --card:#17171b;
+      --card2:#1e1e24; --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
+      --text:#f2f2f6; --muted:#6e6e82; --muted2:#9898b0;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;padding:36px 24px;}
+    a{color:var(--muted2);text-decoration:none;font-size:13px;font-weight:600;}
+    a:hover{color:var(--text);}
+    h1{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:.04em;margin:16px 0 5px;}
+    .sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+    .card{
+      background:var(--card);border:1px solid var(--border);border-radius:20px;
+      padding:26px;max-width:460px;
+    }
+    .field-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px;}
+    input{
+      width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:12px;
+      color:var(--text);padding:13px 15px;font-size:14px;font-family:'Nunito',sans-serif;
+      font-weight:600;margin-bottom:12px;outline:none;transition:border-color .2s;
+    }
+    input:focus{border-color:var(--muted2);}
+    input::placeholder{color:var(--muted);}
+    .btn-add{
+      width:100%;background:var(--red);color:white;border:none;border-radius:12px;
+      padding:13px;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.06em;
+      cursor:pointer;box-shadow:0 4px 20px rgba(232,25,60,0.3);transition:opacity .2s,transform .1s;
+    }
+    .btn-add:hover{opacity:.88;}
+    .btn-add:active{transform:scale(0.99);}
+    .divider{height:1px;background:var(--border);margin:22px 0;}
+    .contacts-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;}
+    .contact-item{
+      background:var(--card2);border:1px solid var(--border);border-radius:12px;
+      padding:12px 15px;display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:8px;animation:fadeIn .2s ease;
+    }
+    @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+    .contact-phone{font-size:14px;font-weight:700;font-family:monospace;letter-spacing:.04em;}
+    .contact-badge{
+      font-size:11px;padding:3px 10px;border-radius:20px;
+      background:rgba(29,216,130,0.1);color:var(--green);font-weight:700;
+    }
+    .empty{font-size:13px;color:var(--muted);}
+  </style>
 </head>
+<body>
+  <a href="../index.html">← Back to Home</a>
+  <h1>Emergency Contacts</h1>
+  <p class="sub">These numbers receive an SMS alert when your SOS or safety timer fires.</p>
 
-<body class="bg-slate-50 p-6">
+  <div class="card">
+    <div class="field-label">Phone Number</div>
+    <input id="contactInput" type="tel" placeholder="+91 XXXXX XXXXX" />
+    <button id="saveContactBtn" class="btn-add">+ Add Contact</button>
 
-  <a href="../index.html" class="text-blue-600 text-sm">← Back</a>
+    <div class="divider"></div>
 
-  <h1 class="text-2xl font-bold mt-4 mb-4">
-    📞 Emergency Contacts
-  </h1>
-
-  <!-- ADD CONTACT FORM -->
-  <div class="max-w-lg bg-white p-5 rounded-xl shadow">
-
-    <input
-      id="contactInput"
-      type="text"
-      placeholder="+91XXXXXXXXXX"
-      class="w-full border p-3 rounded-lg mb-3"
-    />
-
-    <button
-      id="saveContactBtn"
-      class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700"
-    >
-      Save Contact
-    </button>
-
-    <!-- CONTACT LIST -->
-    <div class="mt-6">
-      <h2 class="font-semibold mb-2">Saved Contacts</h2>
-
-      <div id="contactsList" class="space-y-2">
-        <p class="text-sm text-slate-500">No contacts added yet.</p>
-      </div>
-    </div>
-
+    <div class="contacts-label">Saved Contacts</div>
+    <div id="contactsList"><p class="empty">No contacts added yet.</p></div>
   </div>
 
-  <!--  IMPORTANT: Load Firebase First -->
   <script type="module" src="../src/firebase-init.js"></script>
-
-  <!--  Then Load Contacts Page Logic -->
   <script type="module" src="../src/contacts-page.js"></script>
-
 </body>
 </html>

@@ -5,103 +5,783 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>RakshaNet – Women Safety App</title>
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="styles/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-</head>
 
-<body class="bg-slate-50 text-slate-800">
+  <style>
+    /* ─── TOKENS ─── */
+    :root {
+      --red:       #e8193c;
+      --red-glow:  rgba(232, 25, 60, 0.28);
+      --red-dim:   rgba(232, 25, 60, 0.12);
+      --green:     #1dd882;
+      --green-dim: rgba(29, 216, 130, 0.12);
+      --amber:     #f5a623;
+      --bg:        #0c0c0e;
+      --bg2:       #111114;
+      --card:      #17171b;
+      --card2:     #1e1e24;
+      --border:    rgba(255,255,255,0.07);
+      --border2:   rgba(255,255,255,0.12);
+      --text:      #f2f2f6;
+      --muted:     #6e6e82;
+      --muted2:    #9898b0;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Subtle noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+
+    /* ─── NAVBAR ─── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+      height: 58px;
+      background: rgba(12, 12, 14, 0.82);
+      backdrop-filter: blur(20px) saturate(1.4);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 28px;
+      gap: 0;
+    }
+
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      margin-right: auto;
+    }
+    .nav-logo {
+      width: 32px; height: 32px;
+      background: var(--red);
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 17px;
+      color: white;
+      box-shadow: 0 0 16px var(--red-glow);
+    }
+    .nav-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 19px;
+      letter-spacing: .06em;
+      line-height: 1;
+    }
+    .nav-sub { font-size: 10px; color: var(--muted); line-height: 1; margin-top: 2px; letter-spacing: .05em; }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .nav-link {
+      color: var(--muted2);
+      text-decoration: none;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: color .2s, background .2s;
+    }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+    .nav-divider { width: 1px; height: 20px; background: var(--border2); margin: 0 6px; }
+
+    .nav-btn {
+      border: 1px solid var(--border2);
+      background: var(--card2);
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all .2s;
+      letter-spacing: .02em;
+    }
+    .nav-btn:hover { border-color: var(--muted2); background: rgba(255,255,255,0.08); }
+    .nav-btn.accent { background: var(--green-dim); border-color: rgba(29,216,130,0.3); color: var(--green); }
+    .nav-btn.accent:hover { background: rgba(29,216,130,0.2); }
+
+    #userEmail {
+      font-size: 11px; color: var(--muted);
+      max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* ─── MAIN LAYOUT ─── */
+    main {
+      position: relative; z-index: 1;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 78px 20px 60px;
+    }
+
+    /* ─── TIMER BANNER ─── */
+    #timerBox {
+      display: none;
+      margin-bottom: 18px;
+      background: linear-gradient(135deg, rgba(232,25,60,0.1), rgba(232,25,60,0.05));
+      border: 1px solid rgba(232,25,60,0.35);
+      border-radius: 18px;
+      padding: 18px 24px;
+      display: none;
+      align-items: center;
+      gap: 20px;
+      animation: timerPulse 2.5s ease-in-out infinite;
+    }
+    #timerBox.visible { display: flex; }
+
+    @keyframes timerPulse {
+      0%, 100% { border-color: rgba(232,25,60,0.25); box-shadow: none; }
+      50%       { border-color: rgba(232,25,60,0.6); box-shadow: 0 0 28px rgba(232,25,60,0.12); }
+    }
+
+    .timer-icon { font-size: 28px; flex-shrink: 0; }
+    .timer-label { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted2); margin-bottom: 2px; }
+    #timerText {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 52px;
+      color: var(--red);
+      line-height: 1;
+    }
+    .timer-sub { font-size: 12px; color: var(--muted); }
+    .timer-right { margin-left: auto; text-align: right; }
+
+    /* ─── SOS SECTION ─── */
+    .sos-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px 28px 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Background radial glow */
+    .sos-card::before {
+      content: '';
+      position: absolute;
+      top: -60px; left: 50%; transform: translateX(-50%);
+      width: 400px; height: 260px;
+      background: radial-gradient(ellipse, rgba(232,25,60,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .sos-header { margin-bottom: 24px; }
+    .sos-header h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      letter-spacing: .04em;
+      margin-bottom: 4px;
+    }
+    .sos-header p { font-size: 13px; color: var(--muted2); font-weight: 400; }
+
+    /* SOS BUTTON WRAPPER — the aura lives here */
+    .sos-btn-wrap {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .sos-aura {
+      position: absolute;
+      inset: -12px;
+      border-radius: 24px;
+      background: transparent;
+      border: 2px solid rgba(232,25,60,0.4);
+      animation: auraPulse 2.8s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .sos-aura:nth-child(2) { inset: -22px; border-color: rgba(232,25,60,0.2); animation-delay: .8s; border-radius: 28px; }
+
+    @keyframes auraPulse {
+      0%   { opacity: 0.9; transform: scale(1); }
+      50%  { opacity: 0.3; transform: scale(1.01); }
+      100% { opacity: 0.9; transform: scale(1); }
+    }
+
+    #sosBtn {
+      position: relative; z-index: 2;
+      width: 100%;
+      padding: 30px 20px;
+      border: none;
+      border-radius: 18px;
+      background: linear-gradient(145deg, #e8193c 0%, #c0102a 60%, #9e0820 100%);
+      color: white;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      letter-spacing: .12em;
+      cursor: pointer;
+      box-shadow: 0 8px 40px rgba(232,25,60,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
+      transition: transform .12s, box-shadow .12s;
+      overflow: hidden;
+    }
+    #sosBtn::after {
+      content: '';
+      position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+      transform: skewX(-20deg);
+      transition: left .5s;
+    }
+    #sosBtn:hover { transform: scale(1.008); box-shadow: 0 12px 50px rgba(232,25,60,0.6), inset 0 1px 0 rgba(255,255,255,0.2); }
+    #sosBtn:hover::after { left: 140%; }
+    #sosBtn:active { transform: scale(0.995); box-shadow: 0 4px 20px rgba(232,25,60,0.4); }
+
+    .sos-btn-sub { font-size: 11px; color: var(--muted); text-align: center; margin-top: -14px; margin-bottom: 20px; letter-spacing: .04em; }
+
+    /* ─── QUICK ACTIONS ─── */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .q-btn {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 16px;
+      cursor: pointer;
+      text-align: left;
+      transition: all .2s;
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .q-btn:hover { border-color: var(--border2); background: #242430; transform: translateY(-1px); }
+    .q-btn:active { transform: translateY(0); }
+
+    .q-icon {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      display: grid; place-items: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .q-icon.blue { background: rgba(74,142,255,0.15); }
+    .q-icon.green { background: var(--green-dim); }
+    .q-icon.amber { background: rgba(245,166,35,0.13); }
+    .q-icon.purple { background: rgba(162,89,255,0.13); }
+
+    .q-label { font-size: 13px; font-weight: 700; display: block; margin-bottom: 2px; }
+    .q-sub { font-size: 11px; color: var(--muted); display: block; }
+
+    /* ─── SECTION LABEL ─── */
+    .section-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--muted);
+      margin: 28px 0 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ─── MAP ─── */
+    #map {
+      height: 220px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    /* ─── ALERTS ─── */
+    #alertsList { display: flex; flex-direction: column; gap: 8px; }
+
+    .alert-row {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      padding: 13px 16px;
+      display: flex; align-items: center; gap: 12px;
+      animation: slideIn .25s ease;
+    }
+    @keyframes slideIn { from { opacity:0; transform: translateY(-6px); } to { opacity:1; transform:none; } }
+
+    .alert-pip { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .alert-pip.danger { background: var(--red); box-shadow: 0 0 8px var(--red-glow); }
+    .alert-pip.success { background: var(--green); box-shadow: 0 0 8px rgba(29,216,130,0.4); }
+    .alert-pip.info { background: #4a8eff; }
+    .alert-pip.neutral { background: var(--muted); }
+
+    .alert-reason { font-size: 13px; font-weight: 600; }
+    .alert-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* ─── TOAST ─── */
+    #toast {
+      position: fixed;
+      bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card2);
+      border: 1px solid var(--border2);
+      border-radius: 14px;
+      padding: 11px 20px;
+      font-size: 13.5px;
+      font-weight: 600;
+      z-index: 300;
+      white-space: nowrap;
+      max-width: 88vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: rgba(29,216,130,0.35); color: var(--green); }
+    #toast.error   { border-color: rgba(232,25,60,0.4);   color: #ff5070; }
+    #toast.info    { border-color: rgba(74,142,255,0.35); color: #6aabff; }
+
+    /* ═══════════════════════════════════════════
+       FAKE CALL OVERLAY — iOS/Android lock feel
+    ═══════════════════════════════════════════ */
+    #fakeCallOverlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 200;
+      flex-direction: column;
+      background: rgba(8, 8, 10, 0.97);
+      backdrop-filter: blur(40px) saturate(1.6);
+    }
+    #fakeCallOverlay.active { display: flex; }
+
+    /* Top status bar mock */
+    .call-statusbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 26px 0;
+      font-size: 13px; font-weight: 700; color: var(--text);
+    }
+    .call-statusbar .time-str { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: .05em; }
+    .call-icons { display: flex; gap: 7px; align-items: center; font-size: 13px; }
+
+    /* Main call body */
+    .call-body {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: 42px;
+    }
+
+    .call-status-label {
+      font-size: 13px; color: var(--muted2);
+      letter-spacing: .07em; text-transform: uppercase;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+    .call-status-label.connected { color: var(--green); }
+
+    /* Avatar with ripple rings */
+    .call-avatar-wrap {
+      position: relative;
+      width: 110px; height: 110px;
+      margin-bottom: 22px;
+    }
+    .avatar-ring {
+      position: absolute; inset: -14px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(29,216,130,0.25);
+      animation: ring 2.5s ease-out infinite;
+    }
+    .avatar-ring:nth-child(2) { inset: -26px; border-color: rgba(29,216,130,0.12); animation-delay: .8s; }
+    .avatar-ring:nth-child(3) { inset: -40px; border-color: rgba(29,216,130,0.06); animation-delay: 1.6s; }
+    @keyframes ring {
+      0%   { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.08); opacity: 0; }
+    }
+
+    .call-avatar-inner {
+      width: 110px; height: 110px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #2a2a36, #1a1a22);
+      display: grid; place-items: center;
+      font-size: 46px;
+      border: 2px solid rgba(255,255,255,0.08);
+      position: relative; z-index: 1;
+    }
+
+    .call-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 38px;
+      letter-spacing: .04em;
+      margin-bottom: 6px;
+    }
+    .call-number { font-size: 14px; color: var(--muted2); margin-bottom: 10px; font-weight: 500; }
+    #callTimer {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      color: var(--green);
+      letter-spacing: .08em;
+      min-height: 26px;
+    }
+
+    /* Call action row (mute, speaker, end, etc.) */
+    .call-actions {
+      width: 100%; max-width: 340px;
+      padding: 0 20px 52px;
+    }
+
+    .call-action-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .call-action {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      background: none; border: none; cursor: pointer; color: var(--text);
+      font-family: 'Nunito', sans-serif;
+    }
+    .call-action-circle {
+      width: 58px; height: 58px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      display: grid; place-items: center;
+      font-size: 22px;
+      border: 1px solid rgba(255,255,255,0.07);
+      transition: background .2s;
+    }
+    .call-action:hover .call-action-circle { background: rgba(255,255,255,0.14); }
+    .call-action span { font-size: 11px; color: var(--muted2); font-weight: 600; }
+
+    .call-end-row { display: flex; justify-content: center; }
+    #endFakeCall {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: var(--red);
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      box-shadow: 0 6px 28px rgba(232,25,60,0.5);
+      transition: transform .15s, box-shadow .15s;
+      display: grid; place-items: center;
+    }
+    #endFakeCall:hover { transform: scale(1.06); box-shadow: 0 8px 36px rgba(232,25,60,0.65); }
+    #endFakeCall:active { transform: scale(0.97); }
+
+    /*  LIVE LOCATION SHARE MODAL */
+    #locationModal {
+      display: none;
+      position: fixed; inset: 0; z-index: 150;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(12px);
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 0;
+    }
+    #locationModal.active { display: flex; }
+
+    .location-sheet {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 24px 24px 0 0;
+      padding: 28px 24px 42px;
+      width: 100%; max-width: 560px;
+      animation: sheetUp .3s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes sheetUp {
+      from { transform: translateY(60px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .sheet-handle {
+      width: 36px; height: 4px;
+      background: var(--border2);
+      border-radius: 2px;
+      margin: 0 auto 22px;
+    }
+
+    .sheet-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 24px; letter-spacing: .04em;
+      margin-bottom: 6px;
+    }
+    .sheet-sub { font-size: 13px; color: var(--muted2); margin-bottom: 22px; }
+
+    /* Location preview card */
+    .location-preview {
+      background: var(--card2);
+      border: 1px solid var(--border2);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 18px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .location-pin-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: var(--red-dim);
+      border: 1px solid rgba(232,25,60,0.25);
+      display: grid; place-items: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .location-coords { font-size: 11px; color: var(--muted2); margin-top: 3px; font-weight: 500; font-family: monospace; }
+
+    .share-link-box {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: var(--muted2);
+      word-break: break-all;
+      margin-bottom: 16px;
+      font-family: monospace;
+      line-height: 1.5;
+    }
+
+    .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .sheet-btn {
+      padding: 13px;
+      border-radius: 13px;
+      border: 1px solid var(--border2);
+      background: var(--card2);
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-size: 13px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all .2s;
+    }
+    .sheet-btn:hover { background: rgba(255,255,255,0.07); }
+    .sheet-btn.primary {
+      background: var(--red);
+      border-color: var(--red);
+      box-shadow: 0 4px 18px rgba(232,25,60,0.35);
+    }
+    .sheet-btn.primary:hover { background: #d01532; }
+
+    .sheet-btn-full {
+      grid-column: 1 / -1;
+      padding: 13px;
+      border-radius: 13px;
+      border: 1px solid var(--border2);
+      background: var(--card2);
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-size: 13px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all .2s;
+      margin-top: 2px;
+    }
+    .sheet-btn-full:hover { background: rgba(255,255,255,0.06); }
+
+    /* ── LEAFLET DARK FILTER ── */
+    .leaflet-tile { filter: brightness(0.62) saturate(0.8); }
+    .leaflet-container { background: #0c0c0e !important; }
+  </style>
+</head>
+<body>
 
 <!-- NAVBAR -->
-<nav class="bg-white shadow p-4 fixed top-0 left-0 right-0 z-30">
-  <div class="max-w-5xl mx-auto flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white font-bold">S</div>
-      <div>
-        <h1 class="text-lg font-semibold">RakshaNet</h1>
-        <p class="text-xs text-slate-500">Women Safety App</p>
-      </div>
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">R</div>
+    <div>
+      <div class="nav-title">RakshaNet</div>
+      <div class="nav-sub">WOMEN SAFETY NETWORK</div>
     </div>
+  </div>
 
-    <div class="flex items-center gap-4 text-sm">
-      <a href="pages/emergency-contacts.html" class="hover:text-blue-600">Contacts</a>
-      <a href="pages/safety-tips.html" class="hover:text-blue-600">Safety Tips</a>
-      <a href="pages/dashboard.html" class="hover:text-blue-600">Dashboard</a>
+  <div class="nav-links">
+    <a class="nav-link" href="pages/emergency-contacts.html">Contacts</a>
+    <a class="nav-link" href="pages/safety-tips.html">Tips</a>
+    <a class="nav-link" href="pages/dashboard.html">History</a>
 
-      <button id="startTimerBtn" class="text-blue-600 font-medium">
-        Start Safety Timer
-      </button>
+    <div class="nav-divider"></div>
 
-      <button id="checkInBtn" class="text-green-600 font-medium">
-        I'm Safe
-      </button>
-
-      <a href="#" id="loginBtn" class="text-blue-600">Login</a>
-      <span id="userEmail" class="text-xs text-slate-600"></span>
-    </div>
+    <button id="startTimerBtn" class="nav-btn">⏱ Timer</button>
+    <button id="checkInBtn" class="nav-btn accent">✓ Safe</button>
+    <button id="loginBtn" class="nav-btn">Login</button>
+    <span id="userEmail"></span>
   </div>
 </nav>
 
-<!-- MAIN -->
-<main class="max-w-3xl mx-auto mt-28 p-4">
+<!-- MAIN  -->
+<main>
 
-  <!-- SAFETY TIMER BOX -->
-  <div id="timerBox"
-       class="hidden mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-center shadow">
-    <p class="text-sm text-slate-600">🛡 Safety Mode Active</p>
-    <p class="text-3xl font-bold text-red-600">
-      <span id="timerText">60</span>s remaining
-    </p>
+  <!-- Timer Banner -->
+  <div id="timerBox">
+    <div class="timer-icon">🛡</div>
+    <div>
+      <div class="timer-label">Safety Timer</div>
+      <div id="timerText">60</div>
+    </div>
+    <div class="timer-right">
+      <div class="timer-sub">Seconds until<br>emergency fires</div>
+    </div>
   </div>
 
-  <!-- SOS SECTION -->
-  <section class="bg-white rounded-2xl p-6 shadow-lg">
-    <h2 class="text-2xl font-bold mb-2">Emergency — SOS</h2>
-    <p class="text-sm text-slate-600 mb-6">
-      One tap to alert saved contacts with your live location.
-    </p>
+  <!-- SOS Card -->
+  <div class="sos-card">
+    <div class="sos-aura"></div>
+    <div class="sos-aura"></div>
 
-    <button id="sosBtn"
-      class="w-full py-6 rounded-xl text-white font-bold text-3xl
-             bg-gradient-to-r from-red-600 to-rose-500
-             hover:scale-[1.01] transition shadow-xl">
-      🚨 SOS
-    </button>
+    <div class="sos-header">
+      <h2>🚨 Emergency SOS</h2>
+      <p>One tap alerts all saved contacts with your real-time location.</p>
+    </div>
 
-    <div class="grid grid-cols-3 gap-4 mt-6">
-      <button id="shareLocationBtn" class="bg-white p-4 rounded-xl shadow text-center">
-        📍 Share
+    <div class="sos-btn-wrap">
+      <button id="sosBtn">SEND SOS ALERT</button>
+    </div>
+    <div class="sos-btn-sub">Hold for 1 second or tap to trigger immediately</div>
+
+    <div class="quick-grid">
+      <button class="q-btn" id="shareLocationBtn">
+        <div class="q-icon blue">📍</div>
+        <div>
+          <span class="q-label">Share Location</span>
+          <span class="q-sub">Send live link</span>
+        </div>
       </button>
-      <button id="fakeCallBtn" class="bg-white p-4 rounded-xl shadow text-center">
-        📞 Fake Call
+
+      <button class="q-btn" id="fakeCallBtn">
+        <div class="q-icon green">📞</div>
+        <div>
+          <span class="q-label">Fake Call</span>
+          <span class="q-sub">Trigger incoming call</span>
+        </div>
       </button>
-      <button id="aiHelpBtn" class="bg-white p-4 rounded-xl shadow text-center">
-        🤖 AI Help
+
+      <button class="q-btn" id="startTimerBtn2">
+        <div class="q-icon amber">⏱</div>
+        <div>
+          <span class="q-label">Safety Timer</span>
+          <span class="q-sub">Auto-alert if late</span>
+        </div>
+      </button>
+
+      <button class="q-btn" id="aiHelpBtn">
+        <div class="q-icon purple">🤖</div>
+        <div>
+          <span class="q-label">AI Safety Tips</span>
+          <span class="q-sub">Instant guidance</span>
+        </div>
       </button>
     </div>
-  </section>
+  </div>
 
-  <!-- MAP -->
-  <section class="mt-6">
-    <h3 class="text-lg font-semibold mb-2">Map — Current Location</h3>
-    <div id="map" class="h-64 rounded-xl shadow border"></div>
-  </section>
+  <!-- Map -->
+  <div class="section-label">Live Map</div>
+  <div id="map"></div>
 
-  <!-- ALERTS -->
-  <section class="mt-6">
-    <h3 class="text-lg font-semibold mb-2">Recent Alerts</h3>
-    <div id="alertsList" class="space-y-3">
-      <p class="text-sm text-slate-500">No alerts yet.</p>
+  <!-- Alerts -->
+  <div class="section-label">Recent Activity</div>
+  <div id="alertsList">
+    <div class="alert-row">
+      <div class="alert-pip neutral"></div>
+      <div>
+        <div class="alert-reason">No activity yet</div>
+        <div class="alert-time">Login to see your alert history</div>
+      </div>
     </div>
-  </section>
+  </div>
+
 </main>
 
+<!--  FAKE CALL OVERLAY -->
+<div id="fakeCallOverlay">
+
+  <!-- Mock status bar -->
+  <div class="call-statusbar">
+    <span class="time-str" id="realTimeStr">9:41</span>
+    <div class="call-icons">
+      <span>●●●●</span>
+      <span>WiFi</span>
+      <span>🔋</span>
+    </div>
+  </div>
+
+  <div class="call-body">
+    <div class="call-status-label" id="callStatusLabel">Incoming Call…</div>
+
+    <div class="call-avatar-wrap">
+      <div class="avatar-ring"></div>
+      <div class="avatar-ring"></div>
+      <div class="avatar-ring"></div>
+      <div class="call-avatar-inner" id="callerEmoji">👩</div>
+    </div>
+
+    <div class="call-name" id="callerName">Mom</div>
+    <div class="call-number" id="callerNumber">+91 98765 43210</div>
+    <div id="callTimer"></div>
+  </div>
+
+  <div class="call-actions">
+    <div class="call-action-row">
+      <button class="call-action" id="muteBtn">
+        <div class="call-action-circle">🔇</div>
+        <span>Mute</span>
+      </button>
+      <button class="call-action">
+        <div class="call-action-circle">⌨️</div>
+        <span>Keypad</span>
+      </button>
+      <button class="call-action">
+        <div class="call-action-circle">🔊</div>
+        <span>Speaker</span>
+      </button>
+    </div>
+    <div class="call-end-row">
+      <button id="endFakeCall">📵</button>
+    </div>
+  </div>
+
+</div>
+
+<!--   LIVE LOCATION SHARE MODAL -->
+<div id="locationModal">
+  <div class="location-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">📍 Share Live Location</div>
+    <div class="sheet-sub">Send your current coordinates to anyone — no app needed.</div>
+
+    <div class="location-preview">
+      <div class="location-pin-icon">📍</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;">Current Location</div>
+        <div class="location-coords" id="coordsDisplay">Getting location…</div>
+      </div>
+    </div>
+
+    <div class="share-link-box" id="shareLinkBox">Generating link…</div>
+
+    <div class="sheet-actions">
+      <button class="sheet-btn primary" id="copyLinkBtn">📋 Copy Link</button>
+      <button class="sheet-btn" id="openMapsBtn">🗺 Open Maps</button>
+    </div>
+    <button class="sheet-btn-full" id="whatsappShareBtn">📲 Share via WhatsApp</button>
+    <button class="sheet-btn-full" id="nativeShareBtn" style="margin-top:8px;">↑ More Share Options</button>
+    <button onclick="document.getElementById('locationModal').classList.remove('active')"
+            style="width:100%;margin-top:14px;background:none;border:none;color:var(--muted);font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;cursor:pointer;padding:8px;">
+      Cancel
+    </button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
 
 <!-- SCRIPTS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module" src="src/script.js"></script>
-<script type="module" src="src/contacts-page.js"></script>
-
+<script type="module" src="src/fake-call.js"></script>
+<script type="module" src="src/location-share.js"></script>
 
 </body>
 </html>

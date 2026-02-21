@@ -1,141 +1,288 @@
+"""
+app.py — RakshaNet Flask Backend
+=================================
+Demonstrates:
+  ✅ datetime module  — timestamps, formatting, arithmetic, IST timezone
+  ✅ sqlite3 module   — via database.py (CREATE TABLE, INSERT, SELECT, DELETE)
+"""
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from threading import Timer
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 import os
 
 from notifier import send_email_alert, send_sms_alert
 import database
 
-# --- Flask App Setup ---
+# ──────────────────────────────────────
+#  App Setup
+# ──────────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 
-# --- Store active timers in memory ---
+database.create_table()   # creates sqlite3 tables on startup
+
+IST = pytz.timezone("Asia/Kolkata")
+
+# In-memory timer store  {user_id: Timer}
 timers = {}
 
-# --- Create SQLite tables at startup ---
-database.create_table()
 
-# --- Set timezone to India (IST) ---
-ist = pytz.timezone("Asia/Kolkata")
+# ──────────────────────────────────────
+#  DATETIME HELPERS  (used throughout)
+# ──────────────────────────────────────
+def now_ist():
+    """Current datetime in IST."""
+    return datetime.now(IST)
+
+def fmt(dt):
+    """Format a datetime object → human-readable IST string."""
+    return dt.strftime("%d-%m-%Y %H:%M:%S")
+
+def deadline_str(minutes):
+    """Return the wall-clock time when the timer will fire."""
+    deadline = now_ist() + timedelta(minutes=minutes)
+    return deadline.strftime("%H:%M:%S")
 
 
-# AUTO SOS FUNCTION (Runs when timer expires)
+# ──────────────────────────────────────
+#  AUTO-SOS  (timer callback)
+# ──────────────────────────────────────
 def auto_sos(user_id):
-    timestamp = datetime.now(ist).strftime("%d-%m-%Y %H:%M:%S")
+    """
+    Fires when the safety timer expires.
+    Uses datetime to stamp the event and sqlite3 (via database) to store it.
+    """
+    triggered_at = now_ist()   # datetime object
 
-    # Save alert into SQLite database
-    database.insert_alert(user_id, "Check-in timer expired", timestamp)
+    # Build a rich timestamp string using strftime
+    timestamp = triggered_at.strftime("%d-%m-%Y %H:%M:%S")
+    weekday   = triggered_at.strftime("%A")          # e.g. "Tuesday"
+    week_num  = triggered_at.isocalendar()[1]        # ISO week number
 
-    # Emergency alert message
+    # ── sqlite3: save alert ──
+    database.insert_alert(user_id, "Check-in timer expired")
+    database.log_session(user_id, "timer_expired")
+
     alert_message = f"""
 🚨 RakshaNet Emergency Alert!
 
-User: {user_id}
-Reason: Safety timer expired
-Time: {timestamp}
+User    : {user_id}
+Reason  : Safety timer expired — no check-in received
+Triggered: {timestamp}  ({weekday}, Week {week_num})
 
-Please check immediately.
+Please check on this person immediately.
 """
 
-    # ✅ Send Email Alert
     send_email_alert(alert_message)
 
-    # ✅ Send SMS to all emergency contacts saved in SQLite
     contacts = database.get_contacts(user_id)
-
-    if len(contacts) == 0:
-        print("⚠️ No emergency contacts found.")
+    if not contacts:
+        print("⚠️  No emergency contacts saved for", user_id)
     else:
         for phone in contacts:
             send_sms_alert(alert_message, phone)
 
-    print("✅ Alert saved + Notifications sent successfully!")
+    print(f"✅ Auto-SOS fired for {user_id} at {timestamp}")
 
 
-# START TIMER API
+# ──────────────────────────────────────
+#  ROUTES
+# ──────────────────────────────────────
+
+@app.route("/")
+def home():
+    # Show server time using datetime
+    now = now_ist()
+    return jsonify({
+        "status":  "RakshaNet backend running ✅",
+        "time_ist": fmt(now),
+        "day":      now.strftime("%A"),
+        "week":     now.isocalendar()[1],
+    })
+
+
+# ── Start safety timer ──
 @app.route("/start-timer", methods=["POST"])
 def start_timer():
-    data = request.json
-    user_id = data["userId"]
-    minutes = int(data["minutes"])
+    data     = request.json
+    user_id  = data["userId"]
+    minutes  = int(data.get("minutes", 1))
 
-    # Cancel old timer if already running
+    # Cancel existing timer for this user
     if user_id in timers:
         timers[user_id].cancel()
 
-    # Start new timer
-    timer = Timer(minutes * 60, auto_sos, args=[user_id])
-    timers[user_id] = timer
-    timer.start()
+    # datetime: calculate when it will fire
+    fires_at = deadline_str(minutes)
 
-    print(f"⏱ Timer started for {user_id} ({minutes} min)")
+    # Start new threading.Timer
+    t = Timer(minutes * 60, auto_sos, args=[user_id])
+    timers[user_id] = t
+    t.start()
 
-    return jsonify({"message": "Safety timer started"})
+    # sqlite3: log session event
+    database.log_session(user_id, "timer_started")
+
+    started_at = fmt(now_ist())
+    print(f"⏱  Timer started for {user_id} | fires at {fires_at}")
+
+    return jsonify({
+        "message":    "Safety timer started",
+        "started_at": started_at,
+        "fires_at":   fires_at,
+        "duration_min": minutes,
+    })
 
 
-# CHECK-IN API (Cancel Timer)
+# ── Check-in (cancel timer) ──
 @app.route("/check-in", methods=["POST"])
 def check_in():
-    data = request.json
+    data    = request.json
     user_id = data["userId"]
 
-    # Cancel timer if running
     if user_id in timers:
         timers[user_id].cancel()
         del timers[user_id]
 
-    timestamp = datetime.now(ist).strftime("%d-%m-%Y %H:%M:%S")
+    checkin_time = fmt(now_ist())
 
-    # Save check-in log into SQLite
-    database.insert_alert(user_id, "User checked in safely", timestamp)
+    # sqlite3: record check-in
+    database.insert_alert(user_id, "User checked in safely")
+    database.log_session(user_id, "checkin")
 
-    print(f"✅ User checked in safely: {user_id}")
+    print(f"✅ Check-in: {user_id} at {checkin_time}")
 
-    return jsonify({"message": "Timer cancelled successfully"})
+    return jsonify({
+        "message":    "Timer cancelled — you are safe!",
+        "checked_in": checkin_time,
+    })
 
 
-# LOGS API (User Specific Alerts)
+# ── SOS button ──
+@app.route("/sos", methods=["POST"])
+def sos():
+    data    = request.json
+    user_id = data["userId"]
+    lat     = data.get("lat")
+    lng     = data.get("lng")
+
+    sos_time = fmt(now_ist())
+    weekday  = now_ist().strftime("%A")
+
+    # sqlite3: store SOS with coordinates
+    database.insert_alert(user_id, "SOS button triggered", lat=lat, lng=lng)
+    database.log_session(user_id, "sos")
+
+    maps_link = f"https://maps.google.com/?q={lat},{lng}" if lat and lng else "No location"
+
+    message = f"""
+🚨 SOS ALERT — RakshaNet
+
+User      : {user_id}
+Time      : {sos_time} ({weekday})
+Location  : {maps_link}
+
+Please respond immediately!
+"""
+    send_email_alert(message)
+
+    contacts = database.get_contacts(user_id)
+    for phone in contacts:
+        send_sms_alert(message, phone)
+
+    return jsonify({
+        "message":  "SOS alert sent",
+        "time":     sos_time,
+        "location": maps_link,
+    })
+
+
+# ── Get alerts (logs) ──
 @app.route("/logs/<user_id>", methods=["GET"])
 def logs(user_id):
     rows = database.fetch_alerts_for_user(user_id)
-
-    return jsonify([
-        {"user": r[0], "reason": r[1], "time": r[2]}
-        for r in rows
-    ])
+    return jsonify(rows)
 
 
-# ADD CONTACT API
+# ── Get alerts by date  (datetime filter demo) ──
+@app.route("/logs/<user_id>/date/<date_str>", methods=["GET"])
+def logs_by_date(user_id, date_str):
+    """
+    Filter alerts by date.
+    date_str format: YYYY-MM-DD
+    Example: /logs/user@email.com/date/2025-06-15
+    """
+    try:
+        # Validate date string using datetime.strptime
+        datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    rows = database.fetch_alerts_by_date(user_id, date_str)
+    return jsonify(rows)
+
+
+# ── User stats  (datetime arithmetic demo) ──
+@app.route("/stats/<user_id>", methods=["GET"])
+def stats(user_id):
+    """
+    Returns rich stats using datetime module:
+      - alerts today, this week, total
+      - first and last alert timestamps
+      - current IST time, day name, week number
+    Uses sqlite3 COUNT queries under the hood.
+    """
+    data = database.get_user_stats(user_id)
+    return jsonify(data)
+
+
+# ── Add contact ──
 @app.route("/add-contact", methods=["POST"])
 def add_contact():
-    data = request.json
+    data    = request.json
     user_id = data["userId"]
-    phone = data["phone"]
+    phone   = data["phone"]
 
     database.add_contact(user_id, phone)
+    print(f"📌 Contact added: {phone} for {user_id} at {fmt(now_ist())}")
 
-    print(f"📌 Contact added: {phone} for {user_id}")
+    return jsonify({
+        "message": "Contact saved",
+        "added_at": fmt(now_ist()),
+    })
 
-    return jsonify({"message": "Emergency contact saved successfully"})
+
+# ── Delete contact ──
+@app.route("/delete-contact", methods=["POST"])
+def delete_contact():
+    data    = request.json
+    user_id = data["userId"]
+    phone   = data["phone"]
+
+    database.delete_contact(user_id, phone)
+    return jsonify({"message": "Contact removed"})
 
 
-# GET CONTACTS API (ONLY ONE)
+# ── Get contacts ──
 @app.route("/contacts/<user_id>", methods=["GET"])
 def get_contacts(user_id):
     contacts = database.get_contacts(user_id)
-    return jsonify({"contacts": contacts})
+    return jsonify({
+        "contacts":     contacts,
+        "count":        len(contacts),
+        "fetched_at":   fmt(now_ist()),
+    })
 
 
-# HOME ROUTE
-@app.route("/")
-def home():
-    return "RakshaNet Python Service Running ✅"
-
-
-# RUN SERVER (Render Compatible)
+# ──────────────────────────────────────
+#  RUN
+# ──────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
-    app.run(host="0.0.0.0", port=port)
+    print(f"🚀 RakshaNet starting on port {port}")
+    print(f"🕐 Server time (IST): {fmt(now_ist())}")
+    print(f"📅 Day: {now_ist().strftime('%A')}, Week: {now_ist().isocalendar()[1]}")
+    app.run(host="0.0.0.0", port=port, debug=False)

@@ -1,326 +1,242 @@
+// src/script.js — RakshaNet core logic
+
 import { initMap, setUserLocation } from "./map.js";
-import { getAISafetySuggestions } from "./ai.js";
+import { getAISafetySuggestions }   from "./ai.js";
 import { googleLogin, logoutUser, onUserStateChanged } from "./firebase-init.js";
 
-console.log("✅ script.js file is running!");
+const BACKEND_URL   = "https://rakshanetwork-backend.onrender.com";
+const TIMER_MINUTES = 1;
 
-/* --- BACKEND URL --- */
-const BACKEND_URL = "https://rakshanetwork-backend.onrender.com";
-
-/* --- STATE --- */
+/* ─── STATE ─── */
 let safetyInterval = null;
-let safetySeconds = 0;
-let currentUserId = null;
+let safetySeconds  = 0;
+let currentUserId  = null;
+let currentLat     = null;
+let currentLng     = null;
 
-/* --- ELEMENTS --- */
-const startBtn = document.getElementById("startTimerBtn");
-const checkInBtn = document.getElementById("checkInBtn");
+/* ─── ELEMENTS ─── */
+const startBtn    = document.getElementById("startTimerBtn");
+const startBtn2   = document.getElementById("startTimerBtn2"); // card button
+const checkInBtn  = document.getElementById("checkInBtn");
+const timerBox    = document.getElementById("timerBox");
+const timerText   = document.getElementById("timerText");
+const alertsList  = document.getElementById("alertsList");
+const loginBtn    = document.getElementById("loginBtn");
+const userEmail   = document.getElementById("userEmail");
+const sosBtn      = document.getElementById("sosBtn");
+const aiHelpBtn   = document.getElementById("aiHelpBtn");
 
-const timerBox = document.getElementById("timerBox");
-const timerText = document.getElementById("timerText");
+/* ═══════════════════
+   TOAST
+═══════════════════ */
+function toast(msg, type = "info", ms = 3200) {
+  const el = document.getElementById("toast");
+  if (!el) return;
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = el.className.replace("show","").trim(); }, ms);
+}
 
-const alertsList = document.getElementById("alertsList");
-
-const loginBtn = document.getElementById("loginBtn");
-const userEmail = document.getElementById("userEmail");
-
-const sosBtn = document.getElementById("sosBtn");
-const aiHelpBtn = document.getElementById("aiHelpBtn");
-
-/* Contacts UI */
-const contactInput = document.getElementById("contactInput");
-const saveContactBtn = document.getElementById("saveContactBtn");
-const contactsList = document.getElementById("contactsList");
-
-/* --- MAP INIT --- */
+/* ═══════════════════
+   MAP & GEO
+═══════════════════ */
 initMap();
 
 navigator.geolocation.getCurrentPosition(
-  (pos) => setUserLocation(pos.coords.latitude, pos.coords.longitude),
-  () => console.log("Location not allowed")
+  pos => {
+    currentLat = pos.coords.latitude;
+    currentLng = pos.coords.longitude;
+    setUserLocation(currentLat, currentLng);
+  },
+  () => toast("📍 Location access denied", "error")
 );
 
-/* --- ALERT COLORS --- */
-function getAlertType(reason) {
-  reason = reason.toLowerCase();
-
-  if (reason.includes("expired")) return "danger";
-  if (reason.includes("checked in")) return "success";
-
-  return "info";
-}
-
-/* --- SHOW ALERT IN UI --- */
-function renderAlert(reason, time) {
-  if (!alertsList) return;
-
-  const type = getAlertType(reason);
-
-  const colors = {
-    info: "bg-slate-50 border-slate-200",
-    success: "bg-green-50 border-green-200",
-    danger: "bg-red-50 border-red-200",
-  };
-
-  const el = document.createElement("div");
-  el.className = `p-4 border rounded-xl shadow-sm ${colors[type]}`;
-
-  el.innerHTML = `
-    <div class="text-sm font-semibold">${reason}</div>
-    <div class="text-xs text-slate-500">${time}</div>
-  `;
-
-  alertsList.prepend(el);
-}
-
-/* --- BACKEND POST HELPER --- */
-async function backendPost(endpoint, payload = {}) {
-  if (!currentUserId) {
-    alert("⚠️ Please login first!");
-    return null;
-  }
-
+/* ═══════════════════
+   BACKEND
+═══════════════════ */
+async function backendPost(endpoint, extra = {}) {
+  if (!currentUserId) { toast("⚠️ Login first", "error"); return null; }
   try {
     const res = await fetch(BACKEND_URL + endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: currentUserId,
-        ...payload,
-      }),
+      body: JSON.stringify({ userId: currentUserId, ...extra }),
     });
-
     return await res.json();
-  } catch (err) {
-    console.log("❌ Backend error:", err);
+  } catch {
+    toast("❌ Server unreachable", "error");
     return null;
   }
 }
 
-/* --- LOAD ALERTS (User Specific) --- */
-async function loadAlerts() {
+/* ═══════════════════
+   ALERTS
+═══════════════════ */
+function alertType(reason) {
+  const r = reason.toLowerCase();
+  if (r.includes("expired") || r.includes("sos")) return "danger";
+  if (r.includes("safely") || r.includes("safe"))   return "success";
+  return "info";
+}
+
+function renderAlert(reason, time) {
   if (!alertsList) return;
+  const type = alertType(reason);
+  const el = document.createElement("div");
+  el.className = "alert-row";
+  el.innerHTML = `
+    <div class="alert-pip ${type}"></div>
+    <div>
+      <div class="alert-reason">${reason}</div>
+      <div class="alert-time">${time}</div>
+    </div>`;
+  alertsList.prepend(el);
+}
 
-  if (!currentUserId) {
-    alertsList.innerHTML =
-      "<p class='text-sm text-slate-500'>Login to see your alerts.</p>";
-    return;
-  }
-
+async function loadAlerts() {
+  if (!alertsList || !currentUserId) return;
   try {
-    const res = await fetch(BACKEND_URL + "/logs/" + currentUserId);
+    const res  = await fetch(`${BACKEND_URL}/logs/${encodeURIComponent(currentUserId)}`);
     const data = await res.json();
-
     alertsList.innerHTML = "";
-
-    if (data.length === 0) {
-      alertsList.innerHTML =
-        "<p class='text-sm text-slate-500'>No alerts yet.</p>";
+    if (!data.length) {
+      alertsList.innerHTML = `<div class="alert-row">
+        <div class="alert-pip neutral"></div>
+        <div><div class="alert-reason">No activity yet</div>
+        <div class="alert-time">Your SOS and timer events appear here</div></div></div>`;
       return;
     }
-
-    data.reverse().forEach((alert) => {
-      renderAlert(alert.reason, alert.time);
-    });
-  } catch (err) {
-    console.log("Could not load alerts:", err);
-  }
+    [...data].reverse().forEach(a => renderAlert(a.reason, a.time));
+  } catch { /* silent */ }
 }
 
-/* --- SAFETY TIMER --- */
-/* --- SAFETY TIMER --- */
-if (startBtn) {
-  startBtn.addEventListener("click", async () => {
-    console.log("🔥 Start button clicked!");
-
-    // Must be logged in
-    if (!currentUserId) {
-      alert("⚠️ Please login first!");
-      return;
-    }
-
-    // Clear old timer if already running
-    if (safetyInterval) {
-      clearInterval(safetyInterval);
-    }
-
-    // Start countdown at 60
-    safetySeconds = 60;
-
-    // Show timer UI immediately
-    timerBox.classList.remove("hidden");
-    timerText.innerText = safetySeconds;
-
-    console.log("⏳ Countdown started");
-
-    // ✅ Start backend timer (do NOT await, so UI never freezes)
-    backendPost("/start-timer", { minutes: 1 });
-
-    // ✅ Frontend countdown starts instantly
-    safetyInterval = setInterval(() => {
-      safetySeconds--;
-
-      // Update UI
-      timerText.innerText = safetySeconds;
-
-      console.log("Remaining:", safetySeconds);
-
-      // Timer finished
-      if (safetySeconds <= 0) {
-        clearInterval(safetyInterval);
-        safetyInterval = null;
-
-        timerBox.classList.add("hidden");
-
-        alert("🚨 Timer expired! Emergency triggered!");
-
-        // Reload alerts after expiry
-        setTimeout(loadAlerts, 2000);
-      }
-    }, 1000);
-  });
+/* ═══════════════════
+   SAFETY TIMER
+═══════════════════ */
+function stopTimer() {
+  if (safetyInterval) { clearInterval(safetyInterval); safetyInterval = null; }
+  timerBox.classList.remove("visible");
 }
 
+function launchTimer() {
+  if (!currentUserId) { toast("⚠️ Login first", "error"); return; }
+  stopTimer();
+  safetySeconds = TIMER_MINUTES * 60;
+  timerText.textContent = safetySeconds;
+  timerBox.classList.add("visible");
+  backendPost("/start-timer", { minutes: TIMER_MINUTES });
+  toast("⏱ Safety timer started — check in before it expires!", "info", 4000);
 
-/* --- CHECK-IN BUTTON --- */
+  safetyInterval = setInterval(() => {
+    safetySeconds--;
+    timerText.textContent = safetySeconds;
+    if (safetySeconds <= 0) {
+      stopTimer();
+      toast("🚨 Timer expired — emergency alert sent!", "error", 6000);
+      if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 800]);
+      setTimeout(loadAlerts, 3000);
+    }
+  }, 1000);
+}
+
+if (startBtn)  startBtn.addEventListener("click", launchTimer);
+if (startBtn2) startBtn2.addEventListener("click", launchTimer);
+
 if (checkInBtn) {
   checkInBtn.addEventListener("click", async () => {
-    if (!safetyInterval) {
-      alert("ℹ No active timer running.");
-      return;
-    }
-
-    clearInterval(safetyInterval);
-    safetyInterval = null;
-
-    timerBox.classList.add("hidden");
-
+    if (!safetyInterval) { toast("ℹ No active timer", "info"); return; }
+    stopTimer();
     await backendPost("/check-in");
-
-    alert("✅ You checked in safely!");
-
+    toast("✅ You checked in safely!", "success");
     loadAlerts();
   });
 }
 
-/* --- SOS BUTTON --- */
+/* ═══════════════════
+   SOS BUTTON
+═══════════════════ */
 if (sosBtn) {
   sosBtn.addEventListener("click", async () => {
-    try {
-      const pos = await new Promise((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej)
-      );
+    let lat = currentLat, lng = currentLng;
 
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      const msg = `🚨 SOS! My location: https://maps.google.com/?q=${lat},${lng}`;
-
-      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
-
-      alert("🚨 SOS sent successfully!");
-    } catch {
-      alert("Location permission required!");
+    if (!lat || !lng) {
+      toast("📍 Getting your location…", "info");
+      try {
+        const pos = await new Promise((res, rej) =>
+          navigator.geolocation.getCurrentPosition(res, rej, { timeout: 7000 })
+        );
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+        currentLat = lat; currentLng = lng;
+      } catch {
+        toast("❌ Location unavailable — share manually", "error");
+        return;
+      }
     }
+
+    const link = `https://maps.google.com/?q=${lat},${lng}`;
+    const msg  = `🚨 EMERGENCY! I need help. My location: ${link}`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+    backendPost("/sos", { lat, lng });
+    toast("🚨 SOS alert sent!", "error", 5000);
+
+    // Urgent vibration
+    if (navigator.vibrate) navigator.vibrate([200,100,200,100,200,100,600]);
   });
 }
 
-/* --- AI HELP --- */
+/* ═══════════════════
+   AI HELP
+═══════════════════ */
 if (aiHelpBtn) {
   aiHelpBtn.addEventListener("click", async () => {
-    const res = await getAISafetySuggestions(
-      "Give 5 short safety tips for a woman walking alone at night."
+    toast("🤖 Fetching safety tips…", "info");
+    const res  = await getAISafetySuggestions(
+      "Give 5 short, practical safety tips for a woman walking alone at night. Use 1 emoji per tip. Be direct and actionable."
     );
-
-    alert(res?.choices?.[0]?.message?.content || "AI unavailable");
+    const text = res?.choices?.[0]?.message?.content;
+    if (text) alert(text);
+    else toast("AI unavailable right now", "error");
   });
 }
 
-/* --- LOGIN SYSTEM --- */
+/* ═══════════════════
+   AUTH
+═══════════════════ */
 if (loginBtn) {
   loginBtn.addEventListener("click", async () => {
     if (loginBtn.dataset.logged === "yes") {
       await logoutUser();
+      toast("Logged out", "info");
     } else {
-      await googleLogin();
+      try { await googleLogin(); }
+      catch { toast("Login cancelled", "error"); }
     }
   });
 
-  onUserStateChanged((user) => {
+  onUserStateChanged(user => {
     if (user) {
-      loginBtn.innerText = "Logout";
-      loginBtn.dataset.logged = "yes";
-      userEmail.innerText = user.email;
-
       currentUserId = user.email;
-
-      alert("👤 Logged in as " + currentUserId);
-
+      loginBtn.textContent   = "Logout";
+      loginBtn.dataset.logged = "yes";
+      userEmail.textContent   = user.displayName || user.email;
+      toast(`👋 Welcome, ${user.displayName?.split(" ")[0] || "friend"}!`, "success");
       loadAlerts();
-      loadContacts();
     } else {
-      loginBtn.innerText = "Login";
-      loginBtn.dataset.logged = "no";
-      userEmail.innerText = "";
-
       currentUserId = null;
-
-      alertsList.innerHTML =
-        "<p class='text-sm text-slate-500'>Login to see your alerts.</p>";
+      loginBtn.textContent    = "Login";
+      loginBtn.dataset.logged  = "no";
+      userEmail.textContent    = "";
+      if (alertsList) alertsList.innerHTML = `<div class="alert-row">
+        <div class="alert-pip neutral"></div>
+        <div><div class="alert-reason">Login to see your alerts</div></div></div>`;
     }
   });
 }
 
-/* --- CONTACTS UI --- */
-async function loadContacts() {
-  if (!contactsList) return;
-  if (!currentUserId) return;
-
-  try {
-    const res = await fetch(`${BACKEND_URL}/contacts/${currentUserId}`);
-    const data = await res.json();
-
-    contactsList.innerHTML = "";
-
-    if (data.contacts.length === 0) {
-      contactsList.innerHTML =
-        "<p class='text-sm text-slate-500'>No contacts added yet.</p>";
-      return;
-    }
-
-    data.contacts.forEach((phone) => {
-      const div = document.createElement("div");
-      div.className =
-        "p-2 border rounded-lg bg-slate-50 flex justify-between items-center";
-
-      div.innerHTML = `<span class="text-sm font-medium">${phone}</span>`;
-      contactsList.appendChild(div);
-    });
-  } catch (err) {
-    console.log("Failed to load contacts:", err);
-  }
-}
-
-/* Save Contact */
-if (saveContactBtn) {
-  saveContactBtn.addEventListener("click", async () => {
-    const phone = contactInput.value.trim();
-
-    if (!phone.startsWith("+")) {
-      alert("Enter number like +91XXXXXXXXXX");
-      return;
-    }
-
-    await backendPost("/add-contact", { phone });
-
-    contactInput.value = "";
-    alert("✅ Emergency contact saved!");
-
-    loadContacts();
-  });
-}
-
-/* --- LOAD ON REFRESH --- */
-window.addEventListener("load", () => {
-  loadAlerts();
-});
+/* ═══════════════════
+   INIT
+═══════════════════ */
+window.addEventListener("load", loadAlerts);
