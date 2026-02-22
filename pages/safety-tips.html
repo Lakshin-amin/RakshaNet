@@ -3,29 +3,336 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Safety Tips — SafeStep</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="../styles/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <title>Safety Tips — RakshaNet</title>
+  <style>
+    :root {
+      --red:#e8193c; --red-dim:rgba(232,25,60,0.12);
+      --green:#1dd882; --green-dim:rgba(29,216,130,0.12);
+      --amber:#f5a623; --blue:#4a8eff; --purple:#a259ff;
+      --bg:#0c0c0e; --card:#17171b; --card2:#1e1e24;
+      --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
+      --text:#f2f2f6; --muted:#6e6e82; --muted2:#9898b0;
+    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      background:var(--bg); color:var(--text);
+      font-family:'Nunito',sans-serif; min-height:100vh; padding:36px 24px 60px;
+    }
+    body::before {
+      content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+    }
+    .page { position:relative; z-index:1; max-width:780px; margin:0 auto; }
+
+    /* topbar */
+    .topbar { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:32px; }
+    .back-btn {
+      display:flex; align-items:center; gap:7px;
+      color:var(--muted2); text-decoration:none; font-size:13px; font-weight:700;
+      padding:7px 14px; border:1px solid var(--border2); border-radius:10px;
+      background:var(--card2); transition:all .2s;
+    }
+    .back-btn:hover { color:var(--text); border-color:var(--muted); }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:.05em; }
+    .page-sub { font-size:12px; color:var(--muted); margin-top:3px; }
+
+    /* search */
+    .search-wrap {
+      position:relative; margin-bottom:24px;
+    }
+    .search-icon {
+      position:absolute; left:16px; top:50%; transform:translateY(-50%);
+      font-size:16px; pointer-events:none;
+    }
+    #searchInput {
+      width:100%; background:var(--card); border:1px solid var(--border2);
+      border-radius:14px; color:var(--text); padding:14px 16px 14px 44px;
+      font-size:14px; font-family:'Nunito',sans-serif; font-weight:600;
+      outline:none; transition:border-color .2s, box-shadow .2s;
+    }
+    #searchInput:focus {
+      border-color:rgba(232,25,60,0.45);
+      box-shadow:0 0 0 3px rgba(232,25,60,0.08);
+    }
+    #searchInput::placeholder { color:var(--muted); }
+
+    /* category tabs */
+    .tabs {
+      display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px;
+    }
+    .tab {
+      padding:8px 16px; border-radius:30px;
+      border:1px solid var(--border2); background:var(--card2);
+      color:var(--muted2); font-family:'Nunito',sans-serif;
+      font-size:12.5px; font-weight:700; cursor:pointer;
+      transition:all .2s; display:flex; align-items:center; gap:6px;
+    }
+    .tab:hover { border-color:var(--muted); color:var(--text); }
+    .tab.active { background:var(--red); border-color:var(--red); color:white; }
+    .tab .tab-count {
+      background:rgba(255,255,255,0.2); border-radius:20px;
+      padding:1px 7px; font-size:10px;
+    }
+    .tab:not(.active) .tab-count { background:rgba(255,255,255,0.07); color:var(--muted); }
+
+    /* results count */
+    .results-label {
+      font-size:11px; color:var(--muted); margin-bottom:14px; font-weight:600;
+    }
+
+    /* tip grid */
+    .tips-grid {
+      display:grid;
+      grid-template-columns:repeat(2, 1fr);
+      gap:14px;
+    }
+    @media(max-width:540px) { .tips-grid { grid-template-columns:1fr; } }
+
+    .tip-card {
+      background:var(--card); border:1px solid var(--border);
+      border-radius:18px; padding:22px 20px;
+      cursor:default; transition:all .2s;
+      position:relative; overflow:hidden;
+      animation:fadeUp .2s ease both;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    .tip-card:hover { border-color:var(--border2); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.3); }
+    .tip-card.hidden { display:none; }
+
+    /* coloured accent strip */
+    .tip-card::after {
+      content:''; position:absolute;
+      top:0; left:0; width:3px; height:100%;
+      border-radius:18px 0 0 18px;
+    }
+    .tip-card[data-cat="walking"]::after   { background:var(--red); }
+    .tip-card[data-cat="transport"]::after { background:var(--amber); }
+    .tip-card[data-cat="home"]::after      { background:var(--green); }
+    .tip-card[data-cat="digital"]::after   { background:var(--blue); }
+    .tip-card[data-cat="emergency"]::after { background:var(--purple); }
+
+    .tip-icon {
+      font-size:24px; margin-bottom:12px;
+      width:44px; height:44px; border-radius:12px;
+      display:grid; place-items:center;
+    }
+    .tip-card[data-cat="walking"]   .tip-icon { background:var(--red-dim); }
+    .tip-card[data-cat="transport"] .tip-icon { background:rgba(245,166,35,0.12); }
+    .tip-card[data-cat="home"]      .tip-icon { background:var(--green-dim); }
+    .tip-card[data-cat="digital"]   .tip-icon { background:rgba(74,142,255,0.12); }
+    .tip-card[data-cat="emergency"] .tip-icon { background:rgba(162,89,255,0.12); }
+
+    .tip-cat {
+      font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.1em;
+      margin-bottom:6px; opacity:.7;
+    }
+    .tip-card[data-cat="walking"]   .tip-cat { color:var(--red); }
+    .tip-card[data-cat="transport"] .tip-cat { color:var(--amber); }
+    .tip-card[data-cat="home"]      .tip-cat { color:var(--green); }
+    .tip-card[data-cat="digital"]   .tip-cat { color:var(--blue); }
+    .tip-card[data-cat="emergency"] .tip-cat { color:var(--purple); }
+
+    .tip-title { font-size:14px; font-weight:800; margin-bottom:8px; line-height:1.3; }
+    .tip-body  { font-size:12.5px; color:var(--muted2); line-height:1.6; font-weight:500; }
+
+    /* urgency badge */
+    .tip-badge {
+      display:inline-block; font-size:10px; font-weight:800;
+      padding:2px 9px; border-radius:20px; margin-top:10px;
+    }
+    .badge-high   { background:var(--red-dim);             color:var(--red); }
+    .badge-medium { background:rgba(245,166,35,0.12);      color:var(--amber); }
+    .badge-low    { background:rgba(74,142,255,0.1);       color:var(--blue); }
+
+    /* empty state */
+    .no-results {
+      display:none; grid-column:1/-1;
+      text-align:center; padding:48px 20px; color:var(--muted);
+    }
+    .no-results .big { font-size:40px; margin-bottom:12px; }
+    .no-results p    { font-size:14px; }
+  </style>
 </head>
-<body class="bg-slate-50 p-6">
-  <a href="../index.html" class="text-blue-600 mb-4 inline-block">← Back</a>
-  <h1 class="text-2xl font-bold mb-4">Safety Tips</h1>
+<body>
+<div class="page">
 
-  <div class="grid gap-4 max-w-3xl">
-    <div class="bg-white p-4 rounded-xl shadow">
-      <h3 class="font-semibold">When walking alone</h3>
-      <p class="text-sm text-slate-600">Keep the phone accessible, share live location with a trusted contact, avoid poorly lit shortcuts.</p>
-    </div>
-
-    <div class="bg-white p-4 rounded-xl shadow">
-      <h3 class="font-semibold">Using public transport</h3>
-      <p class="text-sm text-slate-600">Sit near the driver or in busy sections; make noise if uncomfortable; keep important numbers ready.</p>
-    </div>
-
-    <div class="bg-white p-4 rounded-xl shadow">
-      <h3 class="font-semibold">If you feel unsafe</h3>
-      <p class="text-sm text-slate-600">Use the SOS button, trigger a fake call, or loudly call for help.</p>
+  <div class="topbar">
+    <a class="back-btn" href="../index.html">← Home</a>
+    <div style="text-align:right">
+      <div class="page-title">Safety Tips</div>
+      <div class="page-sub">Practical advice for every situation</div>
     </div>
   </div>
+
+  <!-- Search -->
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input id="searchInput" type="search" placeholder="Search tips… e.g. 'night', 'phone', 'cab'" />
+  </div>
+
+  <!-- Category tabs -->
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-cat="all">All <span class="tab-count" id="countAll">0</span></button>
+    <button class="tab" data-cat="walking">🚶 Walking <span class="tab-count" id="countWalking">0</span></button>
+    <button class="tab" data-cat="transport">🚌 Transport <span class="tab-count" id="countTransport">0</span></button>
+    <button class="tab" data-cat="home">🏠 At Home <span class="tab-count" id="countHome">0</span></button>
+    <button class="tab" data-cat="digital">📱 Digital <span class="tab-count" id="countDigital">0</span></button>
+    <button class="tab" data-cat="emergency">🚨 Emergency <span class="tab-count" id="countEmergency">0</span></button>
+  </div>
+
+  <div class="results-label" id="resultsLabel"></div>
+
+  <!-- Tips grid -->
+  <div class="tips-grid" id="tipsGrid"></div>
+
+</div>
+
+<script>
+const TIPS = [
+  /* WALKING */
+  { cat:"walking", icon:"🌙", title:"Walking at night", urgency:"high",
+    body:"Stick to lit streets, avoid shortcuts through parks or alleys. Walk facing traffic so you can see approaching vehicles." },
+  { cat:"walking", icon:"🎧", title:"Keep earphones out", urgency:"high",
+    body:"One earbud maximum when alone. You need to hear footsteps, cars, and your surroundings clearly." },
+  { cat:"walking", icon:"📍", title:"Share your route", urgency:"medium",
+    body:"Before leaving, send your live location to a trusted contact. Use RakshaNet's Share Location feature." },
+  { cat:"walking", icon:"👟", title:"Walk confidently", urgency:"low",
+    body:"Walk at a steady pace, head up. Appearing confident and aware makes you a less appealing target." },
+  { cat:"walking", icon:"🏃", title:"Trust your gut", urgency:"high",
+    body:"If a street or situation feels wrong, leave immediately. Cross the road, enter a shop, or call someone." },
+  { cat:"walking", icon:"💡", title:"Avoid phone distraction", urgency:"medium",
+    body:"Stay aware of surroundings. If you must use your phone, step into a well-lit shop or building first." },
+
+  /* TRANSPORT */
+  { cat:"transport", icon:"🚕", title:"Verify your cab", urgency:"high",
+    body:"Always check the cab number plate matches the app before getting in. Share the trip details with someone." },
+  { cat:"transport", icon:"💺", title:"Choose your seat wisely", urgency:"medium",
+    body:"In buses or trains, sit near the driver, conductor, or in busy sections. Avoid isolated compartments." },
+  { cat:"transport", icon:"🔊", title:"Make noise if uncomfortable", urgency:"high",
+    body:"Don't stay silent out of politeness. Loudly say 'Stop the car' or 'I need help' — attract attention." },
+  { cat:"transport", icon:"📲", title:"Share live trip", urgency:"medium",
+    body:"Use the app's Journey Mode to share your trip duration with a contact who gets alerted if you don't arrive." },
+  { cat:"transport", icon:"🚉", title:"Avoid late-night solo transit", urgency:"medium",
+    body:"If possible, travel with someone after 10pm. Plan your route before you leave and know which stops are busy." },
+
+  /* HOME */
+  { cat:"home", icon:"🔒", title:"Lock up properly", urgency:"high",
+    body:"Always lock doors and windows before sleeping. Use a chain or additional latch on the main door." },
+  { cat:"home", icon:"📞", title:"Know your neighbours", urgency:"low",
+    body:"Introduce yourself to at least 2 nearby neighbours. A trusted neighbour can respond faster than police." },
+  { cat:"home", icon:"🚪", title:"Don't open for strangers", urgency:"high",
+    body:"Never open the door for unexpected visitors. Verify identity through the peephole or intercom first." },
+  { cat:"home", icon:"🌐", title:"Secure your WiFi", urgency:"medium",
+    body:"Use a strong password on your home network. A compromised network can expose your location and data." },
+  { cat:"home", icon:"💡", title:"Use outdoor lighting", urgency:"low",
+    body:"Keep the entrance to your home well lit. Motion-sensor lights are a low-cost deterrent." },
+
+  /* DIGITAL */
+  { cat:"digital", icon:"🔐", title:"Strong passwords everywhere", urgency:"high",
+    body:"Use unique passwords for each account. Use a password manager. Enable 2-factor authentication on email and banking." },
+  { cat:"digital", icon:"📵", title:"Location privacy", urgency:"high",
+    body:"Check which apps have access to your location. Only grant it when necessary, and revoke after use." },
+  { cat:"digital", icon:"🤳", title:"Think before you post", urgency:"medium",
+    body:"Avoid posting your real-time location, daily routines, or home address on social media." },
+  { cat:"digital", icon:"📧", title:"Spot phishing attempts", urgency:"medium",
+    body:"Never click links in unexpected messages even from known contacts. Verify by calling them directly." },
+  { cat:"digital", icon:"🛡", title:"Privacy on dating apps", urgency:"high",
+    body:"Never share your home address or workplace early. Meet first-time dates in public places." },
+
+  /* EMERGENCY */
+  { cat:"emergency", icon:"📞", title:"Know emergency numbers", urgency:"high",
+    body:"India: Police 100, Women Helpline 1091, Ambulance 108, Emergency 112. Save them in your phone." },
+  { cat:"emergency", icon:"🚨", title:"Use the SOS button", urgency:"high",
+    body:"RakshaNet's SOS button instantly shares your location via WhatsApp and alerts your saved contacts." },
+  { cat:"emergency", icon:"📞", title:"Fake call trick", urgency:"medium",
+    body:"If you feel unsafe, use the Fake Call feature. It triggers a realistic incoming call giving you a reason to leave." },
+  { cat:"emergency", icon:"🗣", title:"Yell 'Fire!' not 'Help!'", urgency:"medium",
+    body:"Studies show people respond faster to 'Fire!' than 'Help!' in public emergencies. Use it if needed." },
+  { cat:"emergency", icon:"⏱", title:"Set the safety timer", urgency:"high",
+    body:"Before going somewhere unfamiliar, set RakshaNet's timer. If you don't check in, contacts get alerted automatically." },
+];
+
+/* ── Count per category ── */
+const counts = { all: TIPS.length, walking:0, transport:0, home:0, digital:0, emergency:0 };
+TIPS.forEach(t => counts[t.cat]++);
+Object.keys(counts).forEach(k => {
+  const el = document.getElementById("count" + k.charAt(0).toUpperCase() + k.slice(1));
+  if (el) el.textContent = counts[k];
+});
+
+/* ── Render all tips ── */
+const grid = document.getElementById("tipsGrid");
+
+TIPS.forEach((tip, i) => {
+  const card = document.createElement("div");
+  card.className = "tip-card";
+  card.dataset.cat = tip.cat;
+  card.dataset.search = (tip.title + " " + tip.body + " " + tip.cat).toLowerCase();
+  card.style.animationDelay = `${i * 0.03}s`;
+
+  const badgeClass = { high:"badge-high", medium:"badge-medium", low:"badge-low" }[tip.urgency];
+  const urgencyLabel = { high:"⚠ High Priority", medium:"Medium Priority", low:"Good to Know" }[tip.urgency];
+
+  card.innerHTML = `
+    <div class="tip-icon">${tip.icon}</div>
+    <div class="tip-cat">${tip.cat}</div>
+    <div class="tip-title">${tip.title}</div>
+    <div class="tip-body">${tip.body}</div>
+    <span class="tip-badge ${badgeClass}">${urgencyLabel}</span>
+  `;
+  grid.appendChild(card);
+});
+
+/* no-results placeholder */
+const noResults = document.createElement("div");
+noResults.className = "no-results";
+noResults.innerHTML = `<div class="big">🔍</div><p>No tips found for "<span id="searchTerm"></span>"</p>`;
+grid.appendChild(noResults);
+
+/* ── Filter logic ── */
+let activeTab = "all";
+let searchVal = "";
+
+function applyFilter() {
+  const cards = grid.querySelectorAll(".tip-card");
+  let visible = 0;
+
+  cards.forEach((card, i) => {
+    const catMatch    = activeTab === "all" || card.dataset.cat === activeTab;
+    const searchMatch = !searchVal || card.dataset.search.includes(searchVal);
+    const show        = catMatch && searchMatch;
+    card.classList.toggle("hidden", !show);
+    if (show) { card.style.animationDelay = `${visible * 0.04}s`; visible++; }
+  });
+
+  noResults.style.display = visible === 0 ? "block" : "none";
+  const noResSearch = document.getElementById("searchTerm");
+  if (noResSearch) noResSearch.textContent = searchVal || activeTab;
+
+  document.getElementById("resultsLabel").textContent =
+    visible === TIPS.length ? `Showing all ${TIPS.length} tips`
+    : `${visible} tip${visible !== 1 ? "s" : ""} found`;
+}
+
+/* tabs */
+document.getElementById("tabs").addEventListener("click", e => {
+  const tab = e.target.closest(".tab");
+  if (!tab) return;
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  tab.classList.add("active");
+  activeTab = tab.dataset.cat;
+  applyFilter();
+});
+
+/* search */
+document.getElementById("searchInput").addEventListener("input", e => {
+  searchVal = e.target.value.trim().toLowerCase();
+  applyFilter();
+});
+
+applyFilter();
+</script>
 </body>
 </html>

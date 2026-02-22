@@ -8,68 +8,359 @@
   <title>Emergency Contacts — RakshaNet</title>
   <style>
     :root {
-      --red:#e8193c; --green:#1dd882; --bg:#0c0c0e; --card:#17171b;
-      --card2:#1e1e24; --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
+      --red:#e8193c; --red-dim:rgba(232,25,60,0.12);
+      --green:#1dd882; --green-dim:rgba(29,216,130,0.12);
+      --bg:#0c0c0e; --card:#17171b; --card2:#1e1e24;
+      --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
       --text:#f2f2f6; --muted:#6e6e82; --muted2:#9898b0;
     }
-    *{box-sizing:border-box;margin:0;padding:0;}
-    body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;padding:36px 24px;}
-    a{color:var(--muted2);text-decoration:none;font-size:13px;font-weight:600;}
-    a:hover{color:var(--text);}
-    h1{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:.04em;margin:16px 0 5px;}
-    .sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
-    .card{
-      background:var(--card);border:1px solid var(--border);border-radius:20px;
-      padding:26px;max-width:460px;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Nunito', sans-serif; min-height: 100vh;
+      padding: 36px 24px 60px;
     }
-    .field-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px;}
-    input{
-      width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:12px;
-      color:var(--text);padding:13px 15px;font-size:14px;font-family:'Nunito',sans-serif;
-      font-weight:600;margin-bottom:12px;outline:none;transition:border-color .2s;
+    body::before {
+      content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
     }
-    input:focus{border-color:var(--muted2);}
-    input::placeholder{color:var(--muted);}
-    .btn-add{
-      width:100%;background:var(--red);color:white;border:none;border-radius:12px;
-      padding:13px;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.06em;
-      cursor:pointer;box-shadow:0 4px 20px rgba(232,25,60,0.3);transition:opacity .2s,transform .1s;
+    .page { position: relative; z-index: 1; max-width: 520px; }
+
+    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; }
+    .back-btn {
+      display:flex; align-items:center; gap:7px;
+      color:var(--muted2); text-decoration:none; font-size:13px; font-weight:700;
+      padding:7px 14px; border:1px solid var(--border2); border-radius:10px;
+      background:var(--card2); transition:all .2s;
     }
-    .btn-add:hover{opacity:.88;}
-    .btn-add:active{transform:scale(0.99);}
-    .divider{height:1px;background:var(--border);margin:22px 0;}
-    .contacts-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;}
-    .contact-item{
-      background:var(--card2);border:1px solid var(--border);border-radius:12px;
-      padding:12px 15px;display:flex;align-items:center;justify-content:space-between;
-      margin-bottom:8px;animation:fadeIn .2s ease;
+    .back-btn:hover { color:var(--text); border-color:var(--muted); }
+
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:.05em; }
+    .page-sub   { font-size:12px; color:var(--muted); margin-top:3px; }
+
+    /* section label */
+    .section-label {
+      font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.12em;
+      color:var(--muted); margin:24px 0 12px;
+      display:flex; align-items:center; gap:10px;
     }
-    @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-    .contact-phone{font-size:14px;font-weight:700;font-family:monospace;letter-spacing:.04em;}
-    .contact-badge{
-      font-size:11px;padding:3px 10px;border-radius:20px;
-      background:rgba(29,216,130,0.1);color:var(--green);font-weight:700;
+    .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* add-contact card */
+    .add-card {
+      background:var(--card); border:1px solid var(--border);
+      border-radius:20px; padding:24px;
     }
-    .empty{font-size:13px;color:var(--muted);}
+    .field-label {
+      font-size:10.5px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.1em; color:var(--muted); margin-bottom:9px;
+    }
+
+    .input-row { display:flex; gap:10px; }
+    input[type="tel"] {
+      flex:1; background:var(--card2); border:1px solid var(--border2);
+      border-radius:12px; color:var(--text);
+      padding:13px 15px; font-size:14px; font-family:'Nunito',sans-serif;
+      font-weight:600; outline:none; transition:border-color .2s, box-shadow .2s;
+    }
+    input[type="tel"]:focus {
+      border-color:rgba(232,25,60,0.5);
+      box-shadow:0 0 0 3px rgba(232,25,60,0.08);
+    }
+    input::placeholder { color:var(--muted); }
+
+    .btn-add {
+      background:var(--red); color:white; border:none; border-radius:12px;
+      padding:13px 20px; font-family:'Bebas Neue',sans-serif; font-size:16px;
+      letter-spacing:.05em; cursor:pointer; white-space:nowrap;
+      box-shadow:0 4px 18px rgba(232,25,60,0.3);
+      transition:opacity .2s, transform .12s;
+    }
+    .btn-add:hover { opacity:.88; }
+    .btn-add:active { transform:scale(0.97); }
+
+    /* hint */
+    .hint { font-size:11px; color:var(--muted); margin-top:10px; }
+
+    /* contacts list */
+    .contacts-list { display:flex; flex-direction:column; gap:10px; }
+
+    /* contact item */
+    .contact-item {
+      background:var(--card); border:1px solid var(--border); border-radius:14px;
+      overflow:hidden; position:relative;
+      animation:fadeUp .2s ease both;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:none} }
+
+    .contact-front {
+      display:flex; align-items:center; gap:14px;
+      padding:14px 16px;
+      background:var(--card);
+      transition:transform .3s cubic-bezier(.34,.8,.64,1);
+      position:relative; z-index:1;
+    }
+
+    /* sliding delete revealed behind */
+    .contact-back {
+      position:absolute; inset:0;
+      display:flex; align-items:center; justify-content:flex-end; padding-right:16px;
+      background:rgba(232,25,60,0.12);
+    }
+    .confirm-delete-btn {
+      background:var(--red); border:none; border-radius:10px;
+      color:white; font-family:'Nunito',sans-serif; font-size:13px; font-weight:800;
+      padding:8px 16px; cursor:pointer; display:flex; align-items:center; gap:6px;
+      box-shadow:0 4px 14px rgba(232,25,60,0.35);
+      transition:opacity .2s;
+    }
+    .confirm-delete-btn:hover { opacity:.85; }
+
+    /* when swiped open */
+    .contact-item.reveal .contact-front { transform:translateX(-110px); }
+
+    .contact-avatar {
+      width:40px; height:40px; border-radius:12px;
+      background:var(--card2); border:1px solid var(--border2);
+      display:grid; place-items:center; font-size:18px; flex-shrink:0;
+    }
+    .contact-info { flex:1; min-width:0; }
+    .contact-phone { font-size:14px; font-weight:800; font-family:monospace; letter-spacing:.04em; }
+    .contact-added { font-size:11px; color:var(--muted); margin-top:2px; }
+
+    .contact-badge {
+      font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px;
+      background:var(--green-dim); color:var(--green);
+    }
+
+    /* swipe / delete button */
+    .swipe-btn {
+      background:none; border:none; cursor:pointer;
+      color:var(--muted); font-size:18px; padding:4px 6px;
+      border-radius:8px; transition:color .2s, background .2s;
+      flex-shrink:0;
+    }
+    .swipe-btn:hover { color:var(--red); background:var(--red-dim); }
+
+    /* count badge */
+    .count-badge {
+      background:var(--red-dim); color:var(--red);
+      font-size:11px; font-weight:800; padding:2px 9px;
+      border-radius:20px; margin-left:8px;
+    }
+
+    .empty { font-size:13px; color:var(--muted); text-align:center; padding:24px 0; }
+
+    /* toast */
+    #toast {
+      position:fixed; bottom:28px; left:50%;
+      transform:translateX(-50%) translateY(80px);
+      background:var(--card2); border:1px solid var(--border2);
+      border-radius:14px; padding:11px 20px;
+      font-size:13.5px; font-weight:700; z-index:100;
+      white-space:nowrap; pointer-events:none;
+      box-shadow:0 8px 32px rgba(0,0,0,0.4);
+      transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+    }
+    #toast.show { transform:translateX(-50%) translateY(0); }
+    #toast.success { border-color:rgba(29,216,130,0.35); color:var(--green); }
+    #toast.error   { border-color:rgba(232,25,60,0.4);   color:#ff5070; }
+    #toast.info    { border-color:rgba(74,142,255,0.35);  color:#6aabff; }
   </style>
 </head>
 <body>
-  <a href="../index.html">← Back to Home</a>
-  <h1>Emergency Contacts</h1>
-  <p class="sub">These numbers receive an SMS alert when your SOS or safety timer fires.</p>
+<div class="page">
 
-  <div class="card">
-    <div class="field-label">Phone Number</div>
-    <input id="contactInput" type="tel" placeholder="+91 XXXXX XXXXX" />
-    <button id="saveContactBtn" class="btn-add">+ Add Contact</button>
-
-    <div class="divider"></div>
-
-    <div class="contacts-label">Saved Contacts</div>
-    <div id="contactsList"><p class="empty">No contacts added yet.</p></div>
+  <div class="topbar">
+    <a class="back-btn" href="../index.html">← Home</a>
+    <div style="text-align:right">
+      <div class="page-title">Contacts</div>
+      <div class="page-sub">Receive alerts during emergencies</div>
+    </div>
   </div>
 
-  <script type="module" src="../src/firebase-init.js"></script>
-  <script type="module" src="../src/contacts-page.js"></script>
+  <!-- Add contact -->
+  <div class="add-card">
+    <div class="field-label">Add Emergency Contact</div>
+    <div class="input-row">
+      <input id="contactInput" type="tel" placeholder="+91 XXXXX XXXXX" />
+      <button class="btn-add" id="saveContactBtn">+ Add</button>
+    </div>
+    <div class="hint">Include country code. E.g. +91 98765 43210</div>
+  </div>
+
+  <!-- Contact list -->
+  <div class="section-label">
+    Saved Contacts
+    <span class="count-badge" id="countBadge">0</span>
+  </div>
+  <div class="contacts-list" id="contactsList">
+    <div class="empty">No contacts saved yet.</div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { onUserStateChanged } from "../src/firebase-init.js";
+
+const BACKEND     = "https://rakshanetwork-backend.onrender.com";
+const input       = document.getElementById("contactInput");
+const saveBtn     = document.getElementById("saveContactBtn");
+const listEl      = document.getElementById("contactsList");
+const countBadge  = document.getElementById("countBadge");
+
+let userId = null;
+const AVATARS = ["👩","👧","👩‍🦱","👨","👩‍🦰","🧑","👩‍🦳"];
+
+/* ── Toast ── */
+function toast(msg, type = "info", ms = 3000) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.className = `show ${type}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = el.className.replace("show","").trim(); }, ms);
+}
+
+/* ── Render one contact ── */
+function makeContactEl(phone, idx) {
+  const item = document.createElement("div");
+  item.className = "contact-item";
+  item.style.animationDelay = `${idx * 0.05}s`;
+
+  const emoji = AVATARS[idx % AVATARS.length];
+
+  item.innerHTML = `
+    <div class="contact-back">
+      <button class="confirm-delete-btn" data-phone="${phone}">
+        🗑 Delete
+      </button>
+    </div>
+    <div class="contact-front">
+      <div class="contact-avatar">${emoji}</div>
+      <div class="contact-info">
+        <div class="contact-phone">${phone}</div>
+        <div class="contact-added">Emergency contact</div>
+      </div>
+      <span class="contact-badge">✓ Active</span>
+      <button class="swipe-btn" title="Delete contact">✕</button>
+    </div>
+  `;
+
+  /* swipe-btn toggles reveal */
+  const swipeBtn = item.querySelector(".swipe-btn");
+  swipeBtn.addEventListener("click", () => {
+    const open = item.classList.contains("reveal");
+    // close all others first
+    document.querySelectorAll(".contact-item.reveal").forEach(el => el.classList.remove("reveal"));
+    if (!open) item.classList.add("reveal");
+  });
+
+  /* confirm delete */
+  item.querySelector(".confirm-delete-btn").addEventListener("click", async () => {
+    await deleteContact(phone, item);
+  });
+
+  return item;
+}
+
+/* ── Load contacts ── */
+async function loadContacts() {
+  if (!userId) {
+    listEl.innerHTML = '<div class="empty">⚠️ Please login first.</div>';
+    return;
+  }
+  try {
+    const res  = await fetch(`${BACKEND}/contacts/${encodeURIComponent(userId)}`);
+    const data = await res.json();
+    const list = data.contacts || [];
+
+    countBadge.textContent = list.length;
+    listEl.innerHTML = "";
+
+    if (!list.length) {
+      listEl.innerHTML = '<div class="empty">No contacts saved yet. Add one above.</div>';
+      return;
+    }
+
+    list.forEach((phone, i) => listEl.appendChild(makeContactEl(phone, i)));
+
+  } catch {
+    listEl.innerHTML = '<div class="empty" style="color:#ff5070">Failed to load contacts.</div>';
+  }
+}
+
+/* ── Delete contact ── */
+async function deleteContact(phone, itemEl) {
+  // Animate out
+  itemEl.style.transition = "opacity .25s, transform .25s, max-height .3s .1s";
+  itemEl.style.opacity    = "0";
+  itemEl.style.transform  = "translateX(40px)";
+  itemEl.style.maxHeight  = itemEl.offsetHeight + "px";
+  setTimeout(() => { itemEl.style.maxHeight = "0"; itemEl.style.marginBottom = "0"; }, 50);
+  setTimeout(() => itemEl.remove(), 380);
+
+  try {
+    await fetch(`${BACKEND}/delete-contact`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, phone }),
+    });
+    toast(`🗑 ${phone} removed`, "info");
+
+    // Update count
+    const remaining = document.querySelectorAll(".contact-item").length - 1;
+    countBadge.textContent = remaining;
+    if (remaining === 0) {
+      setTimeout(() => {
+        listEl.innerHTML = '<div class="empty">No contacts saved yet. Add one above.</div>';
+      }, 400);
+    }
+  } catch {
+    toast("❌ Could not delete — try again", "error");
+  }
+}
+
+/* ── Save contact ── */
+saveBtn.addEventListener("click", async () => {
+  const phone = input.value.trim().replace(/\s+/g, "");
+  if (!userId) { toast("⚠️ Login first", "error"); return; }
+  if (!phone.match(/^\+\d{10,15}$/)) {
+    toast("Enter a valid number: +91XXXXXXXXXX", "error"); return;
+  }
+
+  saveBtn.textContent = "Saving…";
+  saveBtn.disabled    = true;
+
+  try {
+    await fetch(`${BACKEND}/add-contact`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, phone }),
+    });
+    input.value = "";
+    toast(`✅ ${phone} saved!`, "success");
+    await loadContacts();
+  } catch {
+    toast("❌ Could not save contact", "error");
+  } finally {
+    saveBtn.textContent = "+ Add";
+    saveBtn.disabled    = false;
+  }
+});
+
+/* close reveal on outside click */
+document.addEventListener("click", e => {
+  if (!e.target.closest(".contact-item")) {
+    document.querySelectorAll(".contact-item.reveal").forEach(el => el.classList.remove("reveal"));
+  }
+});
+
+/* ── Auth ── */
+onUserStateChanged(user => {
+  userId = user?.email || null;
+  loadContacts();
+});
+</script>
 </body>
 </html>

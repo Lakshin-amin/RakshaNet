@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <title>Journey Mode — RakshaNet</title>
+  <style>
+    :root {
+      --red:#e8193c; --red-dim:rgba(232,25,60,0.12);
+      --green:#1dd882; --green-dim:rgba(29,216,130,0.12);
+      --amber:#f5a623; --blue:#4a8eff;
+      --bg:#0c0c0e; --card:#17171b; --card2:#1e1e24;
+      --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
+      --text:#f2f2f6; --muted:#6e6e82; --muted2:#9898b0;
+    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      background:var(--bg); color:var(--text);
+      font-family:'Nunito',sans-serif; min-height:100vh; padding:36px 24px 60px;
+    }
+    body::before {
+      content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+    }
+    .page { position:relative; z-index:1; max-width:600px; margin:0 auto; }
+
+    .topbar { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:28px; }
+    .back-btn {
+      display:flex; align-items:center; gap:7px;
+      color:var(--muted2); text-decoration:none; font-size:13px; font-weight:700;
+      padding:7px 14px; border:1px solid var(--border2); border-radius:10px;
+      background:var(--card2); transition:all .2s;
+    }
+    .back-btn:hover { color:var(--text); border-color:var(--muted); }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:.05em; }
+    .page-sub { font-size:12px; color:var(--muted); margin-top:3px; }
+
+    /* section label */
+    .section-label {
+      font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.12em;
+      color:var(--muted); margin:24px 0 12px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* setup card */
+    .setup-card {
+      background:var(--card); border:1px solid var(--border); border-radius:20px; padding:26px;
+    }
+
+    .field-label {
+      font-size:10.5px; font-weight:800; text-transform:uppercase;
+      letter-spacing:.1em; color:var(--muted); margin-bottom:9px;
+    }
+    .field { margin-bottom:18px; }
+
+    input[type="text"], input[type="number"], select {
+      width:100%; background:var(--card2); border:1px solid var(--border2);
+      border-radius:12px; color:var(--text); padding:13px 15px;
+      font-size:14px; font-family:'Nunito',sans-serif; font-weight:600;
+      outline:none; transition:border-color .2s, box-shadow .2s;
+      appearance:none;
+    }
+    input:focus, select:focus {
+      border-color:rgba(232,25,60,0.5);
+      box-shadow:0 0 0 3px rgba(232,25,60,0.08);
+    }
+    input::placeholder { color:var(--muted); }
+    select option { background:var(--card2); }
+
+    .row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    .btn-start {
+      width:100%; background:linear-gradient(135deg, var(--red), #c0102a);
+      color:white; border:none; border-radius:14px; padding:15px;
+      font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:.06em;
+      cursor:pointer; box-shadow:0 6px 24px rgba(232,25,60,0.35);
+      transition:opacity .2s, transform .12s;
+    }
+    .btn-start:hover { opacity:.88; }
+    .btn-start:active { transform:scale(0.98); }
+    .btn-start:disabled { opacity:.4; cursor:not-allowed; }
+
+    /* ── ACTIVE JOURNEY ── */
+    #activeJourney { display:none; }
+    #activeJourney.visible { display:block; }
+
+    .journey-card {
+      background:linear-gradient(135deg, rgba(232,25,60,0.08), rgba(232,25,60,0.03));
+      border:1px solid rgba(232,25,60,0.3);
+      border-radius:20px; padding:28px;
+      text-align:center;
+      animation:breathe 3s ease-in-out infinite;
+      position:relative; overflow:hidden;
+    }
+    @keyframes breathe {
+      0%,100% { border-color:rgba(232,25,60,0.25); box-shadow:none; }
+      50%      { border-color:rgba(232,25,60,0.55); box-shadow:0 0 32px rgba(232,25,60,0.1); }
+    }
+
+    .journey-status {
+      font-size:11px; font-weight:800; text-transform:uppercase;
+      letter-spacing:.12em; color:var(--red); margin-bottom:10px;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .status-dot {
+      width:7px; height:7px; border-radius:50%; background:var(--red);
+      animation:blink 1.2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+    .journey-dest {
+      font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:.04em;
+      margin-bottom:6px;
+    }
+    .journey-meta { font-size:12px; color:var(--muted2); margin-bottom:22px; }
+
+    /* countdown ring */
+    .ring-wrap { position:relative; width:140px; height:140px; margin:0 auto 22px; }
+    #countdownRing { transform:rotate(-90deg); }
+    .ring-text {
+      position:absolute; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+    }
+    #cdTime {
+      font-family:'Bebas Neue',sans-serif; font-size:32px; color:var(--text); line-height:1;
+    }
+    .cd-label { font-size:10px; color:var(--muted); margin-top:2px; font-weight:700; }
+
+    .journey-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .j-btn {
+      padding:12px; border-radius:13px; border:1px solid var(--border2);
+      background:var(--card2); color:var(--text);
+      font-family:'Nunito',sans-serif; font-size:13px; font-weight:800;
+      cursor:pointer; transition:all .2s; display:flex; align-items:center;
+      justify-content:center; gap:7px;
+    }
+    .j-btn:hover { background:rgba(255,255,255,0.07); }
+    .j-btn.arrived { background:var(--green-dim); border-color:rgba(29,216,130,0.35); color:var(--green); }
+    .j-btn.arrived:hover { background:rgba(29,216,130,0.2); }
+
+    /* share link box */
+    .share-box {
+      background:var(--card2); border:1px solid var(--border2); border-radius:14px;
+      padding:14px 16px; margin-top:16px; display:flex; align-items:center; gap:10px;
+    }
+    .share-box-link { flex:1; font-size:12px; color:var(--muted2); font-family:monospace; word-break:break-all; }
+    .copy-link-btn {
+      background:var(--card); border:1px solid var(--border2); border-radius:8px;
+      color:var(--text); font-family:'Nunito',sans-serif; font-size:12px; font-weight:700;
+      padding:7px 12px; cursor:pointer; flex-shrink:0; transition:all .2s; white-space:nowrap;
+    }
+    .copy-link-btn:hover { border-color:var(--muted); }
+
+    /* map */
+    #journeyMap {
+      height:200px; border-radius:16px; border:1px solid var(--border);
+      overflow:hidden; margin-top:0;
+    }
+    .leaflet-tile { filter:brightness(.6) saturate(.8); }
+    .leaflet-container { background:#0c0c0e !important; }
+
+    /* toast */
+    #toast {
+      position:fixed; bottom:28px; left:50%;
+      transform:translateX(-50%) translateY(80px);
+      background:var(--card2); border:1px solid var(--border2);
+      border-radius:14px; padding:11px 20px; font-size:13.5px; font-weight:700;
+      z-index:200; white-space:nowrap; pointer-events:none;
+      box-shadow:0 8px 32px rgba(0,0,0,0.4);
+      transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+    }
+    #toast.show { transform:translateX(-50%) translateY(0); }
+    #toast.success { border-color:rgba(29,216,130,0.35); color:var(--green); }
+    #toast.error   { border-color:rgba(232,25,60,0.4);   color:#ff5070; }
+    #toast.info    { border-color:rgba(74,142,255,0.35);  color:#6aabff; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <a class="back-btn" href="../index.html">← Home</a>
+    <div style="text-align:right">
+      <div class="page-title">Journey Mode</div>
+      <div class="page-sub">Share your trip — auto-alert if you don't arrive</div>
+    </div>
+  </div>
+
+  <!-- Setup form -->
+  <div id="setupCard" class="setup-card">
+    <div class="field">
+      <div class="field-label">Destination</div>
+      <input type="text" id="destInput" placeholder="e.g. Andheri Station, College, Home…" />
+    </div>
+
+    <div class="row-2">
+      <div class="field">
+        <div class="field-label">Duration</div>
+        <input type="number" id="durationInput" min="1" max="480" placeholder="30" value="30" />
+      </div>
+      <div class="field">
+        <div class="field-label">Unit</div>
+        <select id="unitSelect">
+          <option value="min">Minutes</option>
+          <option value="hr">Hours</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">Your Name (for share link)</div>
+      <input type="text" id="nameInput" placeholder="e.g. Priya" />
+    </div>
+
+    <button class="btn-start" id="startJourneyBtn">🗺 Start Journey</button>
+  </div>
+
+  <!-- Active journey -->
+  <div id="activeJourney">
+
+    <div class="section-label">Active Journey</div>
+
+    <div class="journey-card">
+      <div class="journey-status">
+        <div class="status-dot"></div>
+        Journey in progress
+      </div>
+
+      <div class="journey-dest" id="journeyDestDisplay">—</div>
+      <div class="journey-meta" id="journeyMeta">—</div>
+
+      <!-- Countdown ring -->
+      <div class="ring-wrap">
+        <svg id="countdownRing" width="140" height="140" viewBox="0 0 140 140">
+          <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+          <circle id="ringArc" cx="70" cy="70" r="58" fill="none"
+                  stroke="#e8193c" stroke-width="10"
+                  stroke-linecap="round"
+                  stroke-dasharray="364.4" stroke-dashoffset="0"
+                  style="transition:stroke-dashoffset 1s linear, stroke .5s"/>
+        </svg>
+        <div class="ring-text">
+          <div id="cdTime">00:00</div>
+          <div class="cd-label">remaining</div>
+        </div>
+      </div>
+
+      <div class="journey-actions">
+        <button class="j-btn arrived" id="arrivedBtn">✅ Arrived Safely</button>
+        <button class="j-btn" id="extendBtn">+15 min Extend</button>
+      </div>
+    </div>
+
+    <!-- Share link -->
+    <div class="share-box" id="shareBox">
+      <div class="share-box-link" id="shareLinkText">—</div>
+      <button class="copy-link-btn" id="copyJourneyLink">📋 Copy</button>
+    </div>
+
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button class="j-btn" id="waShareBtn" style="flex:1">📲 Share via WhatsApp</button>
+      <button class="j-btn" id="nativeShareJourneyBtn" style="flex:1">↑ More Options</button>
+    </div>
+
+    <!-- Map -->
+    <div class="section-label">Your Location</div>
+    <div id="journeyMap"></div>
+
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { googleLogin, onUserStateChanged } from "../src/firebase-init.js";
+
+const BACKEND = "https://rakshanetwork-backend.onrender.com";
+
+/* ── Toast ── */
+function toast(msg, type="info", ms=3200) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.className = `show ${type}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = el.className.replace("show","").trim(); }, ms);
+}
+
+/* ── State ── */
+let userId       = null;
+let totalSecs    = 0;
+let remainSecs   = 0;
+let journeyTimer = null;
+let map          = null;
+let marker       = null;
+let currentLat   = null;
+let currentLng   = null;
+
+const CIRC = 2 * Math.PI * 58;  // circumference of ring (r=58)
+
+/* ── Auth ── */
+onUserStateChanged(u => { userId = u?.email || null; });
+
+/* ── Geolocation ── */
+navigator.geolocation.getCurrentPosition(pos => {
+  currentLat = pos.coords.latitude;
+  currentLng = pos.coords.longitude;
+}, () => {});
+
+/* ── Format time ── */
+function fmt(s) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+  return `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+}
+
+/* ── Update ring ── */
+function updateRing(remain, total) {
+  const arc  = document.getElementById("ringArc");
+  const pct  = remain / total;
+  arc.style.strokeDashoffset = CIRC * (1 - pct);
+  // colour shifts red → amber → green as time depletes
+  arc.style.stroke = pct > 0.5 ? "#1dd882" : pct > 0.2 ? "#f5a623" : "#e8193c";
+  document.getElementById("cdTime").textContent = fmt(remain);
+}
+
+/* ── Init map ── */
+function initMap(lat, lng) {
+  if (map) { map.remove(); map = null; }
+  map = L.map("journeyMap", { center:[lat, lng], zoom:14, zoomControl:true });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom:19 }).addTo(map);
+  marker = L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
+}
+
+/* ── Build share link ── */
+function buildShareLink(name, dest, mins) {
+  const params = new URLSearchParams({ name, dest, mins });
+  return `${location.origin}/pages/journey-watch.html?${params}`;
+}
+
+/* ── Arrived safely ── */
+async function markArrived() {
+  clearInterval(journeyTimer);
+  journeyTimer = null;
+
+  if (userId) {
+    await fetch(`${BACKEND}/check-in`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ userId }),
+    }).catch(() => {});
+  }
+
+  toast("✅ Arrived safely! Journey ended.", "success", 4000);
+
+  setTimeout(() => {
+    document.getElementById("activeJourney").classList.remove("visible");
+    document.getElementById("setupCard").style.display = "block";
+  }, 1500);
+}
+
+/* ── Timer expired → auto SOS ── */
+async function timerExpired() {
+  clearInterval(journeyTimer);
+  journeyTimer = null;
+
+  toast("🚨 Journey time expired — sending SOS!", "error", 6000);
+
+  if (navigator.vibrate) navigator.vibrate([400,200,400,200,800]);
+
+  const lat = currentLat, lng = currentLng;
+  const link = lat ? `https://maps.google.com/?q=${lat},${lng}` : "Location unavailable";
+  const msg  = `🚨 EMERGENCY — ${document.getElementById("journeyDestDisplay").textContent} journey overdue!\nLast location: ${link}`;
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+
+  if (userId) {
+    await fetch(`${BACKEND}/sos`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ userId, lat, lng }),
+    }).catch(() => {});
+  }
+}
+
+/* ── Start journey ── */
+document.getElementById("startJourneyBtn").addEventListener("click", async () => {
+  const dest  = document.getElementById("destInput").value.trim();
+  const dur   = parseInt(document.getElementById("durationInput").value) || 30;
+  const unit  = document.getElementById("unitSelect").value;
+  const name  = document.getElementById("nameInput").value.trim() || "Someone";
+
+  if (!dest) { toast("Please enter a destination", "error"); return; }
+
+  const mins = unit === "hr" ? dur * 60 : dur;
+  totalSecs  = mins * 60;
+  remainSecs = totalSecs;
+
+  /* get location */
+  if (!currentLat) {
+    try {
+      const pos = await new Promise((res,rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, { timeout:6000 }));
+      currentLat = pos.coords.latitude;
+      currentLng = pos.coords.longitude;
+    } catch { toast("📍 Location unavailable — journeying without map", "error"); }
+  }
+
+  /* show active panel */
+  document.getElementById("setupCard").style.display = "none";
+  document.getElementById("activeJourney").classList.add("visible");
+
+  document.getElementById("journeyDestDisplay").textContent = dest;
+  document.getElementById("journeyMeta").textContent =
+    `${name} · ${dur} ${unit === "hr" ? "hour" : "min"}${dur !== 1 ? "s" : ""} · Started ${new Date().toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit" })}`;
+
+  updateRing(remainSecs, totalSecs);
+
+  /* share link */
+  const shareLink = buildShareLink(name, dest, mins);
+  document.getElementById("shareLinkText").textContent = shareLink;
+
+  /* map */
+  if (currentLat) {
+    setTimeout(() => initMap(currentLat, currentLng), 200);
+  }
+
+  /* backend timer */
+  if (userId) {
+    await fetch(`${BACKEND}/start-timer`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ userId, minutes: mins }),
+    }).catch(() => {});
+  }
+
+  toast(`🗺 Journey to ${dest} started!`, "success");
+
+  /* countdown */
+  journeyTimer = setInterval(() => {
+    remainSecs--;
+    updateRing(remainSecs, totalSecs);
+    if (remainSecs <= 0) timerExpired();
+  }, 1000);
+});
+
+/* arrived */
+document.getElementById("arrivedBtn").addEventListener("click", markArrived);
+
+/* extend +15 min */
+document.getElementById("extendBtn").addEventListener("click", () => {
+  remainSecs += 15 * 60;
+  totalSecs  += 15 * 60;
+  toast("⏱ Journey extended by 15 minutes", "info");
+  updateRing(remainSecs, totalSecs);
+});
+
+/* copy link */
+document.getElementById("copyJourneyLink").addEventListener("click", async () => {
+  const link = document.getElementById("shareLinkText").textContent;
+  await navigator.clipboard.writeText(link).catch(() => {});
+  toast("📋 Share link copied!", "success");
+});
+
+/* WhatsApp share */
+document.getElementById("waShareBtn").addEventListener("click", () => {
+  const dest = document.getElementById("journeyDestDisplay").textContent;
+  const link = document.getElementById("shareLinkText").textContent;
+  const msg  = `👀 Track my journey to ${dest} on RakshaNet:\n${link}\nI'll mark "Arrived" when I get there — alert my contacts if I don't.`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+});
+
+/* native share */
+document.getElementById("nativeShareJourneyBtn").addEventListener("click", async () => {
+  const link = document.getElementById("shareLinkText").textContent;
+  const dest = document.getElementById("journeyDestDisplay").textContent;
+  if (navigator.share) {
+    await navigator.share({ title:`Track my journey to ${dest}`, url: link }).catch(() => {});
+  } else {
+    await navigator.clipboard.writeText(link).catch(() => {});
+    toast("📋 Link copied!", "success");
+  }
+});
+</script>
+</body>
+</html>

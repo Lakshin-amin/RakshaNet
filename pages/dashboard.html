@@ -4,92 +4,442 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <title>Activity — RakshaNet</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <title>Dashboard — RakshaNet</title>
   <style>
     :root {
-      --red:#e8193c; --green:#1dd882; --bg:#0c0c0e; --card:#17171b;
-      --card2:#1e1e24; --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
+      --red:#e8193c; --red-dim:rgba(232,25,60,0.12);
+      --green:#1dd882; --green-dim:rgba(29,216,130,0.12);
+      --amber:#f5a623; --blue:#4a8eff;
+      --bg:#0c0c0e; --card:#17171b; --card2:#1e1e24;
+      --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
       --text:#f2f2f6; --muted:#6e6e82; --muted2:#9898b0;
     }
-    *{box-sizing:border-box;margin:0;padding:0;}
-    body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;padding:36px 24px;}
-    a{color:var(--muted2);text-decoration:none;font-size:13px;font-weight:600;}
-    a:hover{color:var(--text);}
-    h1{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:.04em;margin:16px 0 6px;}
-    .sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
-    .list{display:flex;flex-direction:column;gap:8px;max-width:600px;}
-    .row{
-      background:var(--card);border:1px solid var(--border);
-      border-radius:14px;padding:14px 18px;
-      display:flex;align-items:center;gap:14px;
-      animation: fadeIn .2s ease;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      min-height: 100vh; padding: 36px 24px 60px;
     }
-    @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-    .pip{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-    .pip.danger{background:var(--red);box-shadow:0 0 8px rgba(232,25,60,0.5);}
-    .pip.success{background:var(--green);box-shadow:0 0 8px rgba(29,216,130,0.4);}
-    .pip.info{background:#4a8eff;}
-    .pip.neutral{background:var(--muted);}
-    .row-reason{font-size:13px;font-weight:700;}
-    .row-time{font-size:11px;color:var(--muted);margin-top:3px;}
-    .row-map{margin-left:auto;font-size:12px;color:#4a8eff;text-decoration:none;flex-shrink:0;font-weight:700;}
-    .row-map:hover{text-decoration:underline;}
-    .empty{color:var(--muted);font-size:14px;padding:24px 0;}
-    .badge{
-      font-size:11px;padding:3px 10px;border-radius:20px;font-weight:700;margin-left:auto;flex-shrink:0;
+    body::before {
+      content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
     }
-    .badge.danger{background:rgba(232,25,60,0.12);color:var(--red);}
-    .badge.success{background:rgba(29,216,130,0.1);color:var(--green);}
-    .badge.info{background:rgba(74,142,255,0.1);color:#6aabff;}
+    .page { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; }
+
+    /* topbar */
+    .topbar { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px; }
+    .back-btn {
+      display: flex; align-items: center; gap: 7px;
+      color: var(--muted2); text-decoration: none; font-size: 13px; font-weight: 700;
+      padding: 7px 14px; border: 1px solid var(--border2); border-radius: 10px;
+      background: var(--card2); transition: all .2s;
+    }
+    .back-btn:hover { color: var(--text); border-color: var(--muted); }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:.05em; }
+    .page-sub { font-size:12px; color:var(--muted); margin-top:3px; }
+
+    /* section label */
+    .section-label {
+      font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.12em;
+      color:var(--muted); margin:28px 0 14px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* stat cards */
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    @media(max-width:580px){ .stats-grid { grid-template-columns:repeat(2,1fr); } }
+
+    .stat-card {
+      background:var(--card); border:1px solid var(--border); border-radius:18px;
+      padding:20px 18px; position:relative; overflow:hidden;
+      transition: border-color .2s, transform .2s; cursor:default;
+    }
+    .stat-card:hover { border-color:var(--border2); transform:translateY(-2px); }
+    .stat-card::before {
+      content:''; position:absolute; top:-20px; right:-20px;
+      width:80px; height:80px; border-radius:50%; opacity:.07;
+    }
+    .stat-card.c-red::before   { background:var(--red); }
+    .stat-card.c-amber::before { background:var(--amber); }
+    .stat-card.c-blue::before  { background:var(--blue); }
+    .stat-card.c-green::before { background:var(--green); }
+
+    .stat-icon {
+      font-size:18px; margin-bottom:14px;
+      width:36px; height:36px; border-radius:10px;
+      display:grid; place-items:center;
+    }
+    .stat-icon.c-red   { background:var(--red-dim); }
+    .stat-icon.c-amber { background:rgba(245,166,35,0.12); }
+    .stat-icon.c-blue  { background:rgba(74,142,255,0.12); }
+    .stat-icon.c-green { background:var(--green-dim); }
+
+    .stat-val {
+      font-family:'Bebas Neue',sans-serif; font-size:44px; line-height:1; margin-bottom:4px;
+    }
+    .stat-val.c-red   { color:var(--red); }
+    .stat-val.c-amber { color:var(--amber); }
+    .stat-val.c-blue  { color:var(--blue); }
+    .stat-val.c-green { color:var(--green); }
+
+    .stat-label { font-size:12px; color:var(--muted2); font-weight:700; }
+    .stat-sub   { font-size:10px; color:var(--muted); margin-top:3px; }
+
+    /* charts */
+    .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media(max-width:540px){ .charts-row { grid-template-columns:1fr; } }
+
+    .chart-card {
+      background:var(--card); border:1px solid var(--border);
+      border-radius:18px; padding:22px;
+    }
+    .chart-title { font-size:13px; font-weight:800; margin-bottom:3px; }
+    .chart-sub   { font-size:11px; color:var(--muted); margin-bottom:18px; }
+    canvas { display:block; width:100% !important; }
+
+    .donut-legend { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+    .legend-row   { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted2); font-weight:600; }
+    .legend-dot   { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+    /* alert list */
+    .alert-list { display:flex; flex-direction:column; gap:8px; }
+    .alert-row {
+      background:var(--card); border:1px solid var(--border);
+      border-radius:13px; padding:13px 17px;
+      display:flex; align-items:center; gap:12px;
+      animation:fadeUp .25s ease both;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:none} }
+
+    .pip { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .pip.danger  { background:var(--red);   box-shadow:0 0 8px rgba(232,25,60,.5); }
+    .pip.success { background:var(--green); box-shadow:0 0 8px rgba(29,216,130,.4); }
+    .pip.info    { background:var(--blue); }
+    .pip.neutral { background:var(--muted); }
+
+    .row-reason { font-size:13px; font-weight:700; }
+    .row-time   { font-size:11px; color:var(--muted); margin-top:2px; }
+    .row-badge  {
+      margin-left:auto; flex-shrink:0;
+      font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px;
+    }
+    .row-badge.danger  { background:var(--red-dim);  color:var(--red); }
+    .row-badge.success { background:var(--green-dim); color:var(--green); }
+    .row-badge.info    { background:rgba(74,142,255,.1); color:var(--blue); }
+    .row-badge.neutral { background:rgba(255,255,255,.06); color:var(--muted2); }
+    .row-map { font-size:12px; color:var(--blue); text-decoration:none; font-weight:700; margin-left:8px; flex-shrink:0; }
+    .row-map:hover { text-decoration:underline; }
+
+    .empty { color:var(--muted); font-size:14px; padding:28px; text-align:center; }
+    .last-updated { font-size:11px; color:var(--muted); text-align:right; margin-top:18px; }
   </style>
 </head>
 <body>
-  <a href="../index.html">← Back to Home</a>
-  <h1>Alert History</h1>
-  <p class="sub">All SOS events, timer triggers, and check-ins.</p>
-  <div class="list" id="alertList"><p class="empty">Loading…</p></div>
+<div class="page">
 
-  <script type="module">
-    import { auth } from "../src/firebase-init.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    const BACKEND = "https://rakshanetwork-backend.onrender.com";
+  <div class="topbar">
+    <a class="back-btn" href="../index.html">← Home</a>
+    <div style="text-align:right">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub" id="currentTime">—</div>
+    </div>
+  </div>
 
-    function typeOf(reason) {
-      const r = reason.toLowerCase();
-      if (r.includes("expired") || r.includes("sos")) return "danger";
-      if (r.includes("safely") || r.includes("safe"))  return "success";
-      return "info";
-    }
+  <div class="section-label">Overview</div>
+  <div class="stats-grid">
+    <div class="stat-card c-red">
+      <div class="stat-icon c-red">🚨</div>
+      <div class="stat-val c-red" id="statTotal">0</div>
+      <div class="stat-label">Total Alerts</div>
+      <div class="stat-sub">All time</div>
+    </div>
+    <div class="stat-card c-amber">
+      <div class="stat-icon c-amber">📅</div>
+      <div class="stat-val c-amber" id="statToday">0</div>
+      <div class="stat-label">Today</div>
+      <div class="stat-sub" id="statTodayDate">—</div>
+    </div>
+    <div class="stat-card c-blue">
+      <div class="stat-icon c-blue">📆</div>
+      <div class="stat-val c-blue" id="statWeek">0</div>
+      <div class="stat-label">This Week</div>
+      <div class="stat-sub" id="statWeekNum">Week —</div>
+    </div>
+    <div class="stat-card c-green">
+      <div class="stat-icon c-green">✅</div>
+      <div class="stat-val c-green" id="statSafe">0</div>
+      <div class="stat-label">Safe Check-ins</div>
+      <div class="stat-sub">Total</div>
+    </div>
+  </div>
 
-    async function load(email) {
-      const res  = await fetch(`${BACKEND}/logs/${encodeURIComponent(email)}`);
-      const data = await res.json();
-      const el   = document.getElementById("alertList");
-      if (!data.length) { el.innerHTML = '<p class="empty">No alerts recorded yet.</p>'; return; }
-      el.innerHTML = "";
-      const labels = { danger:"Emergency", success:"Safe", info:"Event" };
-      [...data].reverse().forEach(a => {
-        const t   = typeOf(a.reason);
-        const row = document.createElement("div");
-        row.className = "row";
-        row.innerHTML = `
-          <div class="pip ${t}"></div>
-          <div>
-            <div class="row-reason">${a.reason}</div>
-            <div class="row-time">${a.time}</div>
-          </div>
-          <span class="badge ${t}">${labels[t]}</span>
-          ${a.lat ? `<a class="row-map" target="_blank" href="https://www.google.com/maps?q=${a.lat},${a.lng}">Map ↗</a>` : ""}`;
-        el.appendChild(row);
-      });
-    }
+  <div class="section-label">Analytics</div>
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Alerts This Week</div>
+      <div class="chart-sub">Daily breakdown (Mon – Sun)</div>
+      <canvas id="barChart" height="160"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Alert Types</div>
+      <div class="chart-sub">Distribution</div>
+      <canvas id="donutChart" height="160"></canvas>
+      <div class="donut-legend" id="donutLegend"></div>
+    </div>
+  </div>
 
-    onAuthStateChanged(auth, user => {
-      if (user) load(user.email);
-      else document.getElementById("alertList").innerHTML =
-        '<p class="empty">⚠️ Please login from the home page first.</p>';
+  <div class="section-label">Recent Activity</div>
+  <div class="alert-list" id="alertList">
+    <div class="empty">Loading…</div>
+  </div>
+  <div class="last-updated" id="lastUpdated"></div>
+
+</div>
+
+<script type="module">
+import { auth } from "../src/firebase-init.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+const BACKEND = "https://rakshanetwork-backend.onrender.com";
+
+/* live clock */
+function tick() {
+  document.getElementById("currentTime").textContent =
+    new Date().toLocaleString("en-IN", {
+      weekday:"long", day:"numeric", month:"long", hour:"2-digit", minute:"2-digit"
     });
-  </script>
+}
+setInterval(tick, 1000); tick();
+
+/* alert type */
+function typeOf(r) {
+  r = r.toLowerCase();
+  if (r.includes("expired") || r.includes("sos")) return "danger";
+  if (r.includes("safely")  || r.includes("safe")) return "success";
+  return "info";
+}
+
+/* animated count-up */
+function countUp(el, target, ms = 900) {
+  const s = performance.now();
+  const run = (now) => {
+    const p = Math.min((now - s) / ms, 1);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(e * target);
+    if (p < 1) requestAnimationFrame(run);
+  };
+  requestAnimationFrame(run);
+}
+
+/* ── Bar chart ── */
+function drawBar(data, labels) {
+  const canvas = document.getElementById("barChart");
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth - 44;
+  const H = 160;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + "px"; canvas.style.height = H + "px";
+  ctx.scale(dpr, dpr);
+
+  const max = Math.max(...data, 1);
+  const pL = 24, pR = 8, pT = 16, pB = 30;
+  const cW = W - pL - pR, cH = H - pT - pB;
+  const slot = cW / data.length;
+  const bW   = slot * 0.52;
+
+  // grid
+  ctx.strokeStyle = "rgba(255,255,255,0.05)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pT + (cH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pL, y); ctx.lineTo(W - pR, y); ctx.stroke();
+  }
+
+  data.forEach((v, i) => {
+    const x  = pL + slot * i + (slot - bW) / 2;
+    const bh = (v / max) * cH;
+    const y  = pT + cH - bh;
+    const r  = Math.min(5, bW / 2, bh || 2);
+
+    const g = ctx.createLinearGradient(x, y, x, y + bh);
+    g.addColorStop(0, "rgba(232,25,60,0.95)");
+    g.addColorStop(1, "rgba(232,25,60,0.2)");
+    ctx.fillStyle = g;
+
+    // rounded-top bar
+    ctx.beginPath();
+    if (bh < r * 2) {
+      ctx.rect(x, y, bW, bh);
+    } else {
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + bW - r, y);
+      ctx.quadraticCurveTo(x + bW, y, x + bW, y + r);
+      ctx.lineTo(x + bW, y + bh);
+      ctx.lineTo(x, y + bh);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    if (v > 0) {
+      ctx.fillStyle = "rgba(242,242,246,0.85)";
+      ctx.font = `bold 10px Nunito`;
+      ctx.textAlign = "center";
+      ctx.fillText(v, x + bW / 2, y - 4);
+    }
+
+    ctx.fillStyle = "rgba(152,152,176,0.7)";
+    ctx.font = "10px Nunito";
+    ctx.textAlign = "center";
+    ctx.fillText(labels[i], x + bW / 2, H - pB + 16);
+  });
+}
+
+/* ── Donut chart ── */
+function drawDonut(segments) {
+  const canvas = document.getElementById("donutChart");
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const size = Math.min(canvas.parentElement.clientWidth - 44, 160);
+  canvas.width = size * dpr; canvas.height = size * dpr;
+  canvas.style.width = size + "px"; canvas.style.height = size + "px";
+  ctx.scale(dpr, dpr);
+
+  const cx = size / 2, cy = size / 2;
+  const oR = size * 0.42, iR = size * 0.26;
+  const total = segments.reduce((s, g) => s + g.value, 0) || 1;
+
+  let angle = -Math.PI / 2;
+  segments.forEach(sg => {
+    const sweep = (sg.value / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, oR, angle, angle + sweep);
+    ctx.closePath();
+    ctx.fillStyle = sg.color;
+    ctx.fill();
+    angle += sweep;
+  });
+
+  // hole
+  ctx.beginPath(); ctx.arc(cx, cy, iR, 0, Math.PI * 2);
+  ctx.fillStyle = "#17171b"; ctx.fill();
+
+  // centre text
+  ctx.fillStyle = "#f2f2f6";
+  ctx.font = `bold ${Math.round(size * 0.14)}px Bebas Neue`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(total, cx, cy - size * 0.04);
+  ctx.fillStyle = "rgba(152,152,176,0.75)";
+  ctx.font = `${Math.round(size * 0.08)}px Nunito`;
+  ctx.fillText("total", cx, cy + size * 0.1);
+
+  // legend
+  document.getElementById("donutLegend").innerHTML = segments.map(sg => `
+    <div class="legend-row">
+      <div class="legend-dot" style="background:${sg.color}"></div>
+      <span>${sg.label}</span>
+      <span style="margin-left:auto;color:var(--text);font-weight:800">${sg.value}</span>
+    </div>`).join("");
+}
+
+/* ── Render alert rows ── */
+function renderAlerts(logs) {
+  const el = document.getElementById("alertList");
+  if (!logs.length) { el.innerHTML = '<div class="empty">No alerts recorded yet.</div>'; return; }
+  const labels = { danger:"Emergency", success:"Safe Check-in", info:"Event", neutral:"Log" };
+  el.innerHTML = "";
+  logs.slice(0, 20).forEach((a, i) => {
+    const t = typeOf(a.reason);
+    const div = document.createElement("div");
+    div.className = "alert-row";
+    div.style.animationDelay = `${i * 0.04}s`;
+    div.innerHTML = `
+      <div class="pip ${t}"></div>
+      <div>
+        <div class="row-reason">${a.reason}</div>
+        <div class="row-time">${a.time || a.created_at || ""}</div>
+      </div>
+      <span class="row-badge ${t}">${labels[t]}</span>
+      ${a.latitude ? `<a class="row-map" target="_blank"
+        href="https://www.google.com/maps?q=${a.latitude},${a.longitude}">Map ↗</a>` : ""}
+    `;
+    el.appendChild(div);
+  });
+}
+
+/* ── Main load ── */
+async function load(email) {
+  try {
+    const [sRes, lRes] = await Promise.all([
+      fetch(`${BACKEND}/stats/${encodeURIComponent(email)}`),
+      fetch(`${BACKEND}/logs/${encodeURIComponent(email)}`),
+    ]);
+    const stats = await sRes.json();
+    const logs  = await lRes.json();
+    const rev   = [...logs].reverse();
+
+    // stat card counters
+    countUp(document.getElementById("statTotal"), stats.total_alerts  || 0);
+    countUp(document.getElementById("statToday"), stats.alerts_today  || 0);
+    countUp(document.getElementById("statWeek"),  stats.alerts_this_week || 0);
+    const safe = logs.filter(l => typeOf(l.reason) === "success").length;
+    countUp(document.getElementById("statSafe"), safe);
+
+    document.getElementById("statTodayDate").textContent =
+      new Date().toLocaleDateString("en-IN", { day:"numeric", month:"short" });
+    document.getElementById("statWeekNum").textContent =
+      `Week ${stats.week_number || "—"}`;
+
+    // bar chart — alerts per weekday
+    const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const dc   = new Array(7).fill(0);
+    logs.forEach(l => {
+      const raw = (l.time || l.created_at || "").replace(
+        /^(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
+      const d = new Date(raw);
+      if (!isNaN(d)) dc[(d.getDay() + 6) % 7]++;
+    });
+    requestAnimationFrame(() => drawBar(dc, days));
+
+    // donut chart
+    const em  = logs.filter(l => typeOf(l.reason) === "danger").length;
+    const sf  = logs.filter(l => typeOf(l.reason) === "success").length;
+    const ot  = logs.filter(l => typeOf(l.reason) === "info").length;
+    let segs  = [
+      { label:"Emergency",     value: em, color: "#e8193c" },
+      { label:"Safe Check-in", value: sf, color: "#1dd882" },
+      { label:"Other Events",  value: ot, color: "#4a8eff" },
+    ].filter(s => s.value > 0);
+    if (!segs.length) segs = [{ label:"No data yet", value:1, color:"rgba(110,110,130,0.35)" }];
+    requestAnimationFrame(() => drawDonut(segs));
+
+    renderAlerts(rev);
+    document.getElementById("lastUpdated").textContent =
+      `Last updated: ${new Date().toLocaleTimeString("en-IN")}`;
+
+  } catch (e) {
+    console.error(e);
+    document.getElementById("alertList").innerHTML =
+      '<div class="empty">⚠️ Could not reach backend. Is it running?</div>';
+  }
+}
+
+onAuthStateChanged(auth, user => {
+  if (user) load(user.email);
+  else document.getElementById("alertList").innerHTML =
+    '<div class="empty">⚠️ Please login from the home page first.</div>';
+});
+
+let rTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(rTimer);
+  rTimer = setTimeout(() => { if (auth.currentUser) load(auth.currentUser.email); }, 250);
+});
+</script>
 </body>
 </html>

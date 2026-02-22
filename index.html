@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#e8193c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
 
   <style>
     /* ─── TOKENS ─── */
@@ -347,9 +350,7 @@
     #toast.error   { border-color: rgba(232,25,60,0.4);   color: #ff5070; }
     #toast.info    { border-color: rgba(74,142,255,0.35); color: #6aabff; }
 
-    /* ═══════════════════════════════════════════
-       FAKE CALL OVERLAY — iOS/Android lock feel
-    ═══════════════════════════════════════════ */
+    /* FAKE CALL OVERLAY — iOS/Android lock feel */
     #fakeCallOverlay {
       display: none;
       position: fixed; inset: 0; z-index: 200;
@@ -471,7 +472,7 @@
     #endFakeCall:hover { transform: scale(1.06); box-shadow: 0 8px 36px rgba(232,25,60,0.65); }
     #endFakeCall:active { transform: scale(0.97); }
 
-    /*  LIVE LOCATION SHARE MODAL */
+    /* LIVE LOCATION SHARE MODAL */
     #locationModal {
       display: none;
       position: fixed; inset: 0; z-index: 150;
@@ -580,14 +581,14 @@
     }
     .sheet-btn-full:hover { background: rgba(255,255,255,0.06); }
 
-    /* ── LEAFLET DARK FILTER ── */
+    /* ─── LEAFLET DARK FILTER ─── */
     .leaflet-tile { filter: brightness(0.62) saturate(0.8); }
     .leaflet-container { background: #0c0c0e !important; }
   </style>
 </head>
 <body>
 
-<!-- NAVBAR -->
+<!-- ═══ NAVBAR ═══ -->
 <nav>
   <div class="nav-brand">
     <div class="nav-logo">R</div>
@@ -601,6 +602,7 @@
     <a class="nav-link" href="pages/emergency-contacts.html">Contacts</a>
     <a class="nav-link" href="pages/safety-tips.html">Tips</a>
     <a class="nav-link" href="pages/dashboard.html">History</a>
+    <a class="nav-link" href="pages/journey.html">🗺 Journey</a>
 
     <div class="nav-divider"></div>
 
@@ -611,7 +613,7 @@
   </div>
 </nav>
 
-<!-- MAIN  -->
+<!--  MAIN  -->
 <main>
 
   <!-- Timer Banner -->
@@ -694,7 +696,7 @@
 
 </main>
 
-<!--  FAKE CALL OVERLAY -->
+<!--  CALL OVERLAY  -->
 <div id="fakeCallOverlay">
 
   <!-- Mock status bar -->
@@ -744,7 +746,7 @@
 
 </div>
 
-<!--   LIVE LOCATION SHARE MODAL -->
+<!--  LOCATION SHARE MODAL -->
 <div id="locationModal">
   <div class="location-sheet">
     <div class="sheet-handle"></div>
@@ -777,11 +779,20 @@
 <!-- TOAST -->
 <div id="toast"></div>
 
-<!-- SCRIPTS -->
+<!--  SCRIPTS  -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module" src="src/script.js"></script>
 <script type="module" src="src/fake-call.js"></script>
 <script type="module" src="src/location-share.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/service-worker.js")
+        .then(r => console.log("✅ SW registered:", r.scope))
+        .catch(e => console.log("SW failed:", e));
+    });
+  }
+</script>
 
 </body>
 </html>
