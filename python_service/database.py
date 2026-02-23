@@ -16,9 +16,7 @@ DB_NAME = "alerts.db"
 IST     = pytz.timezone("Asia/Kolkata")
 
 
-# ──────────────────────────────────────
 #  CONNECTION
-# ──────────────────────────────────────
 def get_connection():
     conn = sqlite3.connect(DB_NAME, check_same_thread=False)
     conn.row_factory = sqlite3.Row   # rows behave like dicts
@@ -26,9 +24,7 @@ def get_connection():
     return conn
 
 
-# ──────────────────────────────────────
 #  CREATE TABLES
-# ──────────────────────────────────────
 def create_table():
     conn = get_connection()
     cursor = conn.cursor()
@@ -75,9 +71,7 @@ def create_table():
     print("✅ Database tables ready")
 
 
-# ──────────────────────────────────────
 #  DATETIME HELPERS
-# ──────────────────────────────────────
 def now_ist():
     """Return current datetime object in IST."""
     return datetime.now(IST)
@@ -107,9 +101,7 @@ def week_number():
     return now_ist().isocalendar()[1]
 
 
-# ──────────────────────────────────────
 #  ALERT FUNCTIONS
-# ──────────────────────────────────────
 def insert_alert(user, reason, lat=None, lng=None):
     conn   = get_connection()
     cursor = conn.cursor()
@@ -168,9 +160,7 @@ def count_alerts_today(user):
     return count
 
 
-# ──────────────────────────────────────
 #  CONTACT FUNCTIONS
-# ──────────────────────────────────────
 def add_contact(user, phone):
     conn   = get_connection()
     cursor = conn.cursor()
@@ -209,9 +199,7 @@ def delete_contact(user, phone):
     conn.close()
 
 
-# ──────────────────────────────────────
 #  SESSION LOGGING  (datetime showcase)
-# ──────────────────────────────────────
 def log_session(user, event):
     """
     Log a session event using multiple datetime features:

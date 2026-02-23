@@ -362,7 +362,7 @@ function renderAlerts(logs) {
       <div class="pip ${t}"></div>
       <div>
         <div class="row-reason">${a.reason}</div>
-        <div class="row-time">${a.time || a.created_at || ""}</div>
+        <div class="row-time">${formatTime(a.time || a.created_at || "")}</div>
       </div>
       <span class="row-badge ${t}">${labels[t]}</span>
       ${a.latitude ? `<a class="row-map" target="_blank"

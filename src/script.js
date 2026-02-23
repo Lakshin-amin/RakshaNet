@@ -26,9 +26,7 @@ const userEmail   = document.getElementById("userEmail");
 const sosBtn      = document.getElementById("sosBtn");
 const aiHelpBtn   = document.getElementById("aiHelpBtn");
 
-/* ═══════════════════
-   TOAST
-═══════════════════ */
+/* TOAST*/
 function toast(msg, type = "info", ms = 3200) {
   const el = document.getElementById("toast");
   if (!el) return;
@@ -38,9 +36,7 @@ function toast(msg, type = "info", ms = 3200) {
   el._t = setTimeout(() => { el.className = el.className.replace("show","").trim(); }, ms);
 }
 
-/* ═══════════════════
-   MAP & GEO
-═══════════════════ */
+/* MAP & GEO*/
 initMap();
 
 navigator.geolocation.getCurrentPosition(
@@ -52,9 +48,7 @@ navigator.geolocation.getCurrentPosition(
   () => toast("📍 Location access denied", "error")
 );
 
-/* ═══════════════════
-   BACKEND
-═══════════════════ */
+/* BACKEND*/
 async function backendPost(endpoint, extra = {}) {
   if (!currentUserId) { toast("⚠️ Login first", "error"); return null; }
   try {
@@ -70,9 +64,7 @@ async function backendPost(endpoint, extra = {}) {
   }
 }
 
-/* ═══════════════════
-   ALERTS
-═══════════════════ */
+/* ALERTS*/
 function alertType(reason) {
   const r = reason.toLowerCase();
   if (r.includes("expired") || r.includes("sos")) return "danger";
@@ -111,9 +103,7 @@ async function loadAlerts() {
   } catch { /* silent */ }
 }
 
-/* ═══════════════════
-   SAFETY TIMER
-═══════════════════ */
+/* SAFETY TIMER */
 function stopTimer() {
   if (safetyInterval) { clearInterval(safetyInterval); safetyInterval = null; }
   timerBox.classList.remove("visible");
@@ -153,9 +143,7 @@ if (checkInBtn) {
   });
 }
 
-/* ═══════════════════
-   SOS BUTTON
-═══════════════════ */
+/* SOS BUTTON */
 if (sosBtn) {
   sosBtn.addEventListener("click", async () => {
     let lat = currentLat, lng = currentLng;
@@ -187,9 +175,7 @@ if (sosBtn) {
   });
 }
 
-/* ═══════════════════
-   AI HELP
-═══════════════════ */
+/* AI HELP */
 if (aiHelpBtn) {
   aiHelpBtn.addEventListener("click", async () => {
     toast("🤖 Fetching safety tips…", "info");
@@ -202,9 +188,7 @@ if (aiHelpBtn) {
   });
 }
 
-/* ═══════════════════
-   AUTH
-═══════════════════ */
+/* AUTH */
 if (loginBtn) {
   loginBtn.addEventListener("click", async () => {
     if (loginBtn.dataset.logged === "yes") {
@@ -236,7 +220,17 @@ if (loginBtn) {
   });
 }
 
-/* ═══════════════════
-   INIT
-═══════════════════ */
+/* INIT */
 window.addEventListener("load", loadAlerts);
+
+function formatTime(raw) {
+  try {
+    const d = new Date(raw);
+    return d.toLocaleString("en-IN", {
+      day: "numeric", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+  } catch {
+    return raw;
+  }
+}
