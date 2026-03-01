@@ -16,7 +16,7 @@ let currentLng     = null;
 
 /* ─── ELEMENTS ─── */
 const startBtn    = document.getElementById("startTimerBtn");
-const startBtn2   = document.getElementById("startTimerBtn2"); // card button
+const startBtn2   = document.getElementById("startTimerBtn2");
 const checkInBtn  = document.getElementById("checkInBtn");
 const timerBox    = document.getElementById("timerBox");
 const timerText   = document.getElementById("timerText");
@@ -26,7 +26,23 @@ const userEmail   = document.getElementById("userEmail");
 const sosBtn      = document.getElementById("sosBtn");
 const aiHelpBtn   = document.getElementById("aiHelpBtn");
 
-/* TOAST*/
+/* ─── FORMAT TIME ─── */
+// Handles ISO format (2026-02-23T13:43:03+05:30) and DD-MM-YYYY format
+function formatTime(raw) {
+  if (!raw) return "—";
+  try {
+    const d = new Date(raw);
+    if (isNaN(d)) return raw;
+    return d.toLocaleString("en-IN", {
+      day: "numeric", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+  } catch {
+    return raw;
+  }
+}
+
+/* ─── TOAST ─── */
 function toast(msg, type = "info", ms = 3200) {
   const el = document.getElementById("toast");
   if (!el) return;
@@ -36,7 +52,7 @@ function toast(msg, type = "info", ms = 3200) {
   el._t = setTimeout(() => { el.className = el.className.replace("show","").trim(); }, ms);
 }
 
-/* MAP & GEO*/
+/* ─── MAP & GEO ─── */
 initMap();
 
 navigator.geolocation.getCurrentPosition(
@@ -48,7 +64,7 @@ navigator.geolocation.getCurrentPosition(
   () => toast("📍 Location access denied", "error")
 );
 
-/* BACKEND*/
+/* ─── BACKEND ─── */
 async function backendPost(endpoint, extra = {}) {
   if (!currentUserId) { toast("⚠️ Login first", "error"); return null; }
   try {
@@ -64,11 +80,11 @@ async function backendPost(endpoint, extra = {}) {
   }
 }
 
-/* ALERTS*/
+/* ─── ALERTS ─── */
 function alertType(reason) {
   const r = reason.toLowerCase();
   if (r.includes("expired") || r.includes("sos")) return "danger";
-  if (r.includes("safely") || r.includes("safe"))   return "success";
+  if (r.includes("safely")  || r.includes("safe")) return "success";
   return "info";
 }
 
@@ -81,7 +97,7 @@ function renderAlert(reason, time) {
     <div class="alert-pip ${type}"></div>
     <div>
       <div class="alert-reason">${reason}</div>
-      <div class="alert-time">${time}</div>
+      <div class="alert-time">${formatTime(time)}</div>
     </div>`;
   alertsList.prepend(el);
 }
@@ -99,11 +115,12 @@ async function loadAlerts() {
         <div class="alert-time">Your SOS and timer events appear here</div></div></div>`;
       return;
     }
-    [...data].reverse().forEach(a => renderAlert(a.reason, a.time));
+    // ✅ Fixed: backend returns a.created_at, fallback to a.time for older records
+    [...data].reverse().forEach(a => renderAlert(a.reason, a.time || a.created_at));
   } catch { /* silent */ }
 }
 
-/* SAFETY TIMER */
+/* ─── SAFETY TIMER ─── */
 function stopTimer() {
   if (safetyInterval) { clearInterval(safetyInterval); safetyInterval = null; }
   timerBox.classList.remove("visible");
@@ -143,7 +160,7 @@ if (checkInBtn) {
   });
 }
 
-/* SOS BUTTON */
+/* ─── SOS BUTTON ─── */
 if (sosBtn) {
   sosBtn.addEventListener("click", async () => {
     let lat = currentLat, lng = currentLng;
@@ -170,12 +187,11 @@ if (sosBtn) {
     backendPost("/sos", { lat, lng });
     toast("🚨 SOS alert sent!", "error", 5000);
 
-    // Urgent vibration
     if (navigator.vibrate) navigator.vibrate([200,100,200,100,200,100,600]);
   });
 }
 
-/* AI HELP */
+/* ─── AI HELP ─── */
 if (aiHelpBtn) {
   aiHelpBtn.addEventListener("click", async () => {
     toast("🤖 Fetching safety tips…", "info");
@@ -188,7 +204,7 @@ if (aiHelpBtn) {
   });
 }
 
-/* AUTH */
+/* ─── AUTH ─── */
 if (loginBtn) {
   loginBtn.addEventListener("click", async () => {
     if (loginBtn.dataset.logged === "yes") {
@@ -203,7 +219,7 @@ if (loginBtn) {
   onUserStateChanged(user => {
     if (user) {
       currentUserId = user.email;
-      loginBtn.textContent   = "Logout";
+      loginBtn.textContent    = "Logout";
       loginBtn.dataset.logged = "yes";
       userEmail.textContent   = user.displayName || user.email;
       toast(`👋 Welcome, ${user.displayName?.split(" ")[0] || "friend"}!`, "success");
@@ -211,8 +227,8 @@ if (loginBtn) {
     } else {
       currentUserId = null;
       loginBtn.textContent    = "Login";
-      loginBtn.dataset.logged  = "no";
-      userEmail.textContent    = "";
+      loginBtn.dataset.logged = "no";
+      userEmail.textContent   = "";
       if (alertsList) alertsList.innerHTML = `<div class="alert-row">
         <div class="alert-pip neutral"></div>
         <div><div class="alert-reason">Login to see your alerts</div></div></div>`;
@@ -220,17 +236,5 @@ if (loginBtn) {
   });
 }
 
-/* INIT */
+/* ─── INIT ─── */
 window.addEventListener("load", loadAlerts);
-
-function formatTime(raw) {
-  try {
-    const d = new Date(raw);
-    return d.toLocaleString("en-IN", {
-      day: "numeric", month: "short", year: "numeric",
-      hour: "2-digit", minute: "2-digit", second: "2-digit"
-    });
-  } catch {
-    return raw;
-  }
-}
