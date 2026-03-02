@@ -115,7 +115,7 @@ async function loadAlerts() {
         <div class="alert-time">Your SOS and timer events appear here</div></div></div>`;
       return;
     }
-    // ✅ Fixed: backend returns a.created_at, fallback to a.time for older records
+    // Fixed: backend returns a.created_at, fallback to a.time for older records
     [...data].reverse().forEach(a => renderAlert(a.reason, a.time || a.created_at));
   } catch { /* silent */ }
 }

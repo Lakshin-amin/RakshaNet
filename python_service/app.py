@@ -1,6 +1,6 @@
 """
 app.py — RakshaNet Flask Backend
-=================================
+-----------------------------
 Demonstrates:
   ✅ datetime module  — timestamps, formatting, arithmetic, IST timezone
   ✅ sqlite3 module   — via database.py (CREATE, INSERT, SELECT, DELETE)
@@ -56,9 +56,9 @@ def auto_sos(user_id):
 
     print(f"✅ Auto-SOS fired for {user_id} at {timestamp}")
 
-# ═══════════════════════════════════════
+
 #  ROUTES
-# ═══════════════════════════════════════
+
 
 @app.route("/")
 def home():
@@ -157,10 +157,9 @@ def get_contacts(user_id):
     contacts = database.get_contacts(user_id)
     return jsonify({"contacts": contacts, "count": len(contacts), "fetched_at": fmt(now_ist())})
 
-# ════════════════════════════════════════
 #  CSV EXPORT
 #  Uses: csv module + datetime + sqlite3
-# ════════════════════════════════════════
+
 @app.route("/export/csv/<user_id>", methods=["GET"])
 def export_csv(user_id):
     """
